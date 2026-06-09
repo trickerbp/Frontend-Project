@@ -58,12 +58,14 @@ export default function Register() {
           <span className="grid h-10 w-10 place-items-center rounded-lg bg-teal-700 text-white">
             <GraduationCap className="h-5 w-5" />
           </span>
-          <span className="text-xl font-semibold text-slate-950">ClassEnroll Mini</span>
+          <span className="text-xl font-semibold text-slate-950">EduMatch Resource</span>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold text-slate-950">Tạo tài khoản student</h1>
-          <p className="mt-1 text-sm text-slate-500">Backend chỉ cho phép đăng ký tài khoản sinh viên.</p>
+          <h1 className="text-2xl font-semibold text-slate-950">Tạo tài khoản học viên</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Tài khoản đăng ký mới mặc định là học viên.
+          </p>
 
           {error && (
             <div className="mt-5 flex gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
@@ -84,8 +86,8 @@ export default function Register() {
                 onChange={handleChange}
                 required
                 minLength={2}
-                placeholder="Nguyen Van A"
-                className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                placeholder="Nguyễn Văn A"
+                className="input"
               />
             </div>
 
@@ -101,7 +103,7 @@ export default function Register() {
                 onChange={handleChange}
                 required
                 placeholder="student@gmail.com"
-                className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                className="input"
               />
             </div>
 
@@ -119,7 +121,7 @@ export default function Register() {
                   required
                   minLength={6}
                   placeholder="Tối thiểu 6 ký tự"
-                  className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 pr-11 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  className="input pr-11"
                 />
                 <button
                   type="button"
@@ -133,10 +135,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
+              <label htmlFor="confirmPassword" className="mb-1.5 block text-sm font-medium text-slate-700">
                 Xác nhận mật khẩu
               </label>
               <input
@@ -148,7 +147,7 @@ export default function Register() {
                 required
                 minLength={6}
                 placeholder="Nhập lại mật khẩu"
-                className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                className="input"
               />
             </div>
 

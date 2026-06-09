@@ -20,9 +20,7 @@ html {
 body {
   min-height: 100%;
   margin: 0;
-  background:
-    linear-gradient(180deg, rgba(13, 148, 136, 0.05), rgba(246, 248, 251, 0) 360px),
-    #f6f8fb;
+  background: #f6f8fb;
   color: #0f172a;
 }
 
@@ -51,4 +49,23 @@ button:disabled {
 .app-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+
+.input {
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  padding: 0.5rem 0.75rem;
+  color: #0f172a;
+  outline: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.input:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.12);
 }

@@ -9,14 +9,16 @@ import {
   useState
 } from "react";
 import {
+  adminApi,
   authApi,
-  classesApi,
   clearSession,
-  enrollmentsApi,
+  courseResourcesApi,
+  coursesApi,
   getErrorMessage,
   persistSession,
+  recommendationsApi,
   storage,
-  usersApi
+  studentProfilesApi
 } from "../api/axiosClient";
 
 const AppContext = createContext(null);
@@ -25,11 +27,22 @@ function replaceById(items, nextItem) {
   return items.map((item) => (item.id === nextItem.id ? nextItem : item));
 }
 
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.data)) return value.data;
+  return [];
+}
+
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => storage.getUser());
-  const [classes, setClasses] = useState([]);
-  const [enrollments, setEnrollments] = useState([]);
-  const [students, setStudents] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [courseResources, setCourseResources] = useState({});
+  const [studentProfile, setStudentProfile] = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
+  const [processingLogs, setProcessingLogs] = useState([]);
+  const [users, setUsers] = useState([]);
   const [booting, setBooting] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [lastError, setLastError] = useState("");
@@ -42,44 +55,62 @@ export function AppProvider({ children }) {
   const logout = useCallback(() => {
     clearSession();
     setCurrentUser(null);
-    setClasses([]);
-    setEnrollments([]);
-    setStudents([]);
+    setCourses([]);
+    setCourseResources({});
+    setStudentProfile(null);
+    setRecommendations([]);
+    setProcessingLogs([]);
+    setUsers([]);
     setLastError("");
   }, []);
 
-  const refreshWorkspace = useCallback(
-    async (user = currentUserRef.current) => {
-      if (!user) return;
+  const loadCourseResources = useCallback(async (courseId) => {
+    const resources = asArray(await courseResourcesApi.list(courseId));
+    setCourseResources((prev) => ({ ...prev, [courseId]: resources }));
+    return resources;
+  }, []);
 
-      setDataLoading(true);
-      setLastError("");
-      try {
-        const nextClasses = await classesApi.list();
-        setClasses(nextClasses);
+  const refreshWorkspace = useCallback(async (user = currentUserRef.current) => {
+    if (!user) return;
 
-        if (user.role === "admin") {
-          const [nextEnrollments, nextStudents] = await Promise.all([
-            enrollmentsApi.list(),
-            usersApi.students().catch(() => [])
-          ]);
-          setEnrollments(nextEnrollments);
-          setStudents(nextStudents);
-        } else {
-          const mine = await enrollmentsApi.mine();
-          setEnrollments(mine);
-          setStudents([]);
-        }
-      } catch (error) {
-        const message = getErrorMessage(error);
-        setLastError(message);
-        throw error;
-      } finally {
-        setDataLoading(false);
+    setDataLoading(true);
+    setLastError("");
+    try {
+      const nextCourses = asArray(await coursesApi.list());
+      setCourses(nextCourses);
+
+      if (user.role === "student") {
+        const [profile, nextRecommendations] = await Promise.all([
+          studentProfilesApi.me().catch(() => null),
+          recommendationsApi.mine().catch(() => [])
+        ]);
+        setStudentProfile(profile);
+        setRecommendations(asArray(nextRecommendations));
+        setProcessingLogs([]);
+        setUsers([]);
+      } else if (user.role === "admin") {
+        const [logs, nextUsers] = await Promise.all([
+          adminApi.processingLogs().catch(() => []),
+          adminApi.users().catch(() => [])
+        ]);
+        setProcessingLogs(asArray(logs));
+        setUsers(asArray(nextUsers));
+        setStudentProfile(null);
+        setRecommendations([]);
+      } else {
+        setStudentProfile(null);
+        setRecommendations([]);
+        setProcessingLogs([]);
+        setUsers([]);
       }
-    },
-    []
-  );
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setLastError(message);
+      throw error;
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -132,59 +163,78 @@ export function AppProvider({ children }) {
     [refreshWorkspace]
   );
 
-  const addClass = useCallback(async (payload) => {
-    const created = await classesApi.create(payload);
-    setClasses((prev) => [created, ...prev]);
+  const createCourse = useCallback(async (payload) => {
+    const created = await coursesApi.create(payload);
+    setCourses((prev) => [created, ...prev]);
     return created;
   }, []);
 
-  const updateClass = useCallback(async (id, payload) => {
-    const updated = await classesApi.update(id, payload);
-    setClasses((prev) => replaceById(prev, updated));
+  const updateCourse = useCallback(async (id, payload) => {
+    const updated = await coursesApi.update(id, payload);
+    setCourses((prev) => replaceById(prev, updated));
     return updated;
   }, []);
 
-  const deleteClass = useCallback(async (id) => {
-    await classesApi.remove(id);
-    setClasses((prev) => prev.filter((item) => item.id !== id));
-    setEnrollments((prev) => prev.filter((item) => item.class_id !== id));
+  const deleteCourse = useCallback(async (id) => {
+    await coursesApi.remove(id);
+    setCourses((prev) => prev.filter((item) => item.id !== id));
+    setCourseResources((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }, []);
 
-  const enrollClass = useCallback(async (classId, note = "") => {
-    const created = await enrollmentsApi.create({
-      class_id: classId,
-      note: note.trim() || null
-    });
-    setEnrollments((prev) => [created, ...prev]);
+  const uploadCourseResource = useCallback(async (courseId, file) => {
+    const created = await courseResourcesApi.upload(courseId, file);
+    setCourseResources((prev) => ({
+      ...prev,
+      [courseId]: [created, ...(prev[courseId] || [])]
+    }));
     return created;
   }, []);
 
-  const approveEnrollment = useCallback(
-    async (id) => {
-      const updated = await enrollmentsApi.approve(id);
-      setEnrollments((prev) => replaceById(prev, updated));
-      await refreshWorkspace();
-      return updated;
-    },
-    [refreshWorkspace]
-  );
+  const processResource = useCallback(async (courseId, resourceId) => {
+    const updated = await courseResourcesApi.process(resourceId);
+    setCourseResources((prev) => ({
+      ...prev,
+      [courseId]: replaceById(prev[courseId] || [], updated)
+    }));
+    return updated;
+  }, []);
 
-  const rejectEnrollment = useCallback(
-    async (id) => {
-      const updated = await enrollmentsApi.reject(id);
-      setEnrollments((prev) => replaceById(prev, updated));
-      await refreshWorkspace();
-      return updated;
-    },
-    [refreshWorkspace]
-  );
+  const deleteResource = useCallback(async (courseId, resourceId) => {
+    await courseResourcesApi.remove(resourceId);
+    setCourseResources((prev) => ({
+      ...prev,
+      [courseId]: (prev[courseId] || []).filter((item) => item.id !== resourceId)
+    }));
+  }, []);
+
+  const saveStudentProfile = useCallback(async (payload) => {
+    const saved = studentProfile?.id
+      ? await studentProfilesApi.update(studentProfile.id, payload)
+      : await studentProfilesApi.create(payload);
+    setStudentProfile(saved);
+    return saved;
+  }, [studentProfile]);
+
+  const generateRecommendations = useCallback(async () => {
+    const generated = await recommendationsApi.generate();
+    const list = asArray(generated);
+    setRecommendations(list.length ? list : asArray(generated?.recommendations));
+    return generated;
+  }, []);
 
   const value = useMemo(
     () => ({
       currentUser,
-      classes,
-      enrollments,
-      students,
+      courses,
+      courseResources,
+      studentProfile,
+      recommendations,
+      processingLogs,
+      users,
       booting,
       dataLoading,
       lastError,
@@ -192,18 +242,24 @@ export function AppProvider({ children }) {
       register,
       logout,
       refreshWorkspace,
-      addClass,
-      updateClass,
-      deleteClass,
-      enrollClass,
-      approveEnrollment,
-      rejectEnrollment
+      loadCourseResources,
+      createCourse,
+      updateCourse,
+      deleteCourse,
+      uploadCourseResource,
+      processResource,
+      deleteResource,
+      saveStudentProfile,
+      generateRecommendations
     }),
     [
       currentUser,
-      classes,
-      enrollments,
-      students,
+      courses,
+      courseResources,
+      studentProfile,
+      recommendations,
+      processingLogs,
+      users,
       booting,
       dataLoading,
       lastError,
@@ -211,12 +267,15 @@ export function AppProvider({ children }) {
       register,
       logout,
       refreshWorkspace,
-      addClass,
-      updateClass,
-      deleteClass,
-      enrollClass,
-      approveEnrollment,
-      rejectEnrollment
+      loadCourseResources,
+      createCourse,
+      updateCourse,
+      deleteCourse,
+      uploadCourseResource,
+      processResource,
+      deleteResource,
+      saveStudentProfile,
+      generateRecommendations
     ]
   );
 
@@ -225,8 +284,6 @@ export function AppProvider({ children }) {
 
 export function useApp() {
   const context = useContext(AppContext);
-  if (!context) {
-    throw new Error("useApp must be used inside AppProvider");
-  }
+  if (!context) throw new Error("useApp must be used inside AppProvider");
   return context;
 }

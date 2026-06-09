@@ -37,16 +37,19 @@ export default function Login() {
     <div className="relative min-h-screen bg-slate-50">
       <header className="absolute left-0 right-0 top-8 px-6 sm:px-10">
         <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-lg bg-teal-600 text-white shadow-sm">
+          <span className="grid h-11 w-11 place-items-center rounded-lg bg-teal-700 text-white shadow-sm">
             <GraduationCap className="h-6 w-6" />
           </span>
-          <span className="text-xl font-semibold text-slate-950">ClassEnroll Mini</span>
+          <span className="text-xl font-semibold text-slate-950">EduMatch Resource</span>
         </div>
       </header>
 
       <main className="flex min-h-screen items-center justify-center px-4 py-24">
         <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-semibold text-slate-950">Đăng nhập</h2>
+          <p className="text-sm font-medium text-teal-700">Resource Mapping</p>
+          <h1 className="mt-1 text-2xl font-semibold text-slate-950">
+            Đăng nhập EduMatch Resource
+          </h1>
 
           {error && (
             <div className="mt-5 flex gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
@@ -67,8 +70,8 @@ export default function Login() {
                 value={form.email}
                 onChange={handleChange}
                 required
-                placeholder="admin@gmail.com"
-                className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                placeholder="Email của bạn"
+                className="input"
               />
             </div>
 
@@ -84,8 +87,8 @@ export default function Login() {
                   value={form.password}
                   onChange={handleChange}
                   required
-                  placeholder="123456"
-                  className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-11 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  placeholder="Mật khẩu"
+                  className="input pr-11"
                 />
                 <button
                   type="button"
@@ -110,7 +113,7 @@ export default function Login() {
           <p className="mt-5 text-center text-sm text-slate-500">
             Chưa có tài khoản?{" "}
             <Link to="/register" className="font-medium text-teal-700 hover:text-teal-800">
-              Đăng ký student
+              Đăng ký học viên
             </Link>
           </p>
         </div>
