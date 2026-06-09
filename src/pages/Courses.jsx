@@ -1,99 +1,165 @@
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import ClassCard from "../components/ClassCard";
-import EmptyState from "../components/EmptyState";
-import { getClassDisplayStatus } from "../components/StatusBadge";
 import { getErrorMessage } from "../api/axiosClient";
+import CourseCard from "../components/CourseCard";
+import EmptyState from "../components/EmptyState";
 import { useApp } from "../store/authStore";
 import { normalizeText } from "../utils/format";
 
-const filters = [
-  { value: "all", label: "Tất cả" },
-  { value: "open", label: "Mở đăng ký" },
-  { value: "full", label: "Đã đầy" },
-  { value: "closed", label: "Đã đóng" }
+const levels = [
+  { value: "all", label: "Tất cả trình độ" },
+  { value: "beginner", label: "Cơ bản" },
+  { value: "intermediate", label: "Trung cấp" },
+  { value: "advanced", label: "Nâng cao" }
 ];
 
-export default function Courses() {
-  const { classes, enrollments, currentUser, enrollClass } = useApp();
+const statuses = [
+  { value: "all", label: "Tất cả trạng thái" },
+  { value: "draft", label: "Bản nháp" },
+  { value: "active", label: "Đang mở" },
+  { value: "archived", label: "Lưu trữ" }
+];
+
+function toList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") return value.split(",").map((item) => item.trim()).filter(Boolean);
+  return [];
+}
+
+export default function Courses({ scope = "all" }) {
+  const {
+    courses,
+    courseResources,
+    currentUser,
+    deleteCourse,
+    generateRecommendations
+  } = useApp();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [submittingId, setSubmittingId] = useState("");
+  const [level, setLevel] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [skill, setSkill] = useState("");
 
-  const filtered = useMemo(() => {
+  const visibleCourses = useMemo(() => {
     const keyword = normalizeText(search);
-    return classes.filter((cls) => {
-      const status = getClassDisplayStatus(cls);
+    const skillKeyword = normalizeText(skill);
+    return courses.filter((course) => {
+      const tags = toList(course.manual_tags);
+      const skills = toList(course.extracted_skills);
       const haystack = normalizeText(
-        `${cls.class_name} ${cls.teacher_name} ${cls.room} ${cls.schedule}`
+        `${course.title} ${course.description} ${course.course_code} ${tags.join(" ")} ${skills.join(" ")}`
       );
-      return (!keyword || haystack.includes(keyword)) && (filter === "all" || status === filter);
+      const belongsToTeacher =
+        currentUser?.role !== "teacher" ||
+        !course.teacher_id ||
+        course.teacher_id === currentUser.id ||
+        course.teacher_name === currentUser.name;
+      return (
+        (scope !== "teacher" || belongsToTeacher) &&
+        (!keyword || haystack.includes(keyword)) &&
+        (!skillKeyword || normalizeText(`${tags.join(" ")} ${skills.join(" ")}`).includes(skillKeyword)) &&
+        (level === "all" || course.level === level) &&
+        (status === "all" || course.status === status)
+      );
     });
-  }, [classes, filter, search]);
+  }, [courses, currentUser, level, scope, search, skill, status]);
 
-  const getEnrollment = (classId) => enrollments.find((item) => item.class_id === classId);
-
-  const handleEnroll = async (classId) => {
-    setSubmittingId(classId);
+  const handleDelete = async (course) => {
+    if (!window.confirm(`Xóa khóa học "${course.title || course.course_code}"?`)) return;
     try {
-      await enrollClass(classId);
-      toast.success("Đăng ký thành công. Yêu cầu đang chờ admin duyệt.");
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSubmittingId("");
+      await deleteCourse(course.id);
+      toast.success("Đã xóa khóa học.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     }
   };
 
+  const handleGenerate = async () => {
+    try {
+      await generateRecommendations();
+      toast.success("Đã tạo gợi ý khóa học.");
+      navigate("/student/recommendations");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const canCreate = currentUser?.role === "teacher" || currentUser?.role === "admin";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-slate-950">Danh sách lớp học</h1>
-        <p className="text-slate-500">Tìm lớp theo tên, giảng viên, lịch học hoặc phòng học.</p>
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-medium text-teal-700">Course catalog</p>
+          <h1 className="mt-1 text-2xl font-semibold text-slate-950">
+            {scope === "teacher" ? "Khóa học của tôi" : "Danh sách khóa học"}
+          </h1>
+          <p className="mt-1 text-slate-500">
+            Tra cứu khóa học theo kỹ năng, chủ đề, tag và trạng thái xử lý tài nguyên.
+          </p>
+        </div>
+        {canCreate && (
+          <Link
+            to="/teacher/courses/new"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+          >
+            <Plus className="h-4 w-4" />
+            Tạo khóa học
+          </Link>
+        )}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm lớp học..."
-            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-3 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-          />
-        </div>
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto app-scrollbar">
-          <SlidersHorizontal className="h-4 w-4 shrink-0 text-slate-400" />
-          <div className="flex gap-2">
-            {filters.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setFilter(item.value)}
-                className={`min-h-10 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  filter === item.value
-                    ? "bg-teal-700 text-white"
-                    : "border border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:text-teal-800"
-                }`}
-              >
+      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_180px]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tìm theo tên, mô tả, mã, kỹ năng..."
+              className="input pl-10"
+            />
+          </div>
+          <select value={level} onChange={(event) => setLevel(event.target.value)} className="input">
+            {levels.map((item) => (
+              <option key={item.value} value={item.value}>
                 {item.label}
-              </button>
+              </option>
             ))}
+          </select>
+          <select value={status} onChange={(event) => setStatus(event.target.value)} className="input">
+            {statuses.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          <div className="relative">
+            <SlidersHorizontal className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={skill}
+              onChange={(event) => setSkill(event.target.value)}
+              placeholder="Lọc skill/tag"
+              className="input pl-10"
+            />
           </div>
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {visibleCourses.length === 0 ? (
         <EmptyState
           icon={Search}
-          title="Không tìm thấy lớp học phù hợp."
+          title="Chưa có khóa học phù hợp với bộ lọc."
           action={
             <button
               type="button"
               onClick={() => {
                 setSearch("");
-                setFilter("all");
+                setLevel("all");
+                setStatus("all");
+                setSkill("");
               }}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
@@ -104,20 +170,18 @@ export default function Courses() {
       ) : (
         <>
           <p className="text-sm text-slate-500">
-            Hiển thị <span className="font-medium text-slate-900">{filtered.length}</span> lớp học
+            Hiển thị <span className="font-medium text-slate-900">{visibleCourses.length}</span> khóa học
           </p>
           <div className="grid auto-rows-fr gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((cls) => (
-              <div
-                key={cls.id}
-                className={`h-full ${submittingId === cls.id ? "pointer-events-none opacity-70" : ""}`}
-              >
-                <ClassCard
-                  cls={cls}
-                  enrollment={getEnrollment(cls.id)}
-                  onEnroll={currentUser.role === "student" ? handleEnroll : undefined}
-                />
-              </div>
+            {visibleCourses.map((course) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                resources={courseResources[course.id] || []}
+                currentUser={currentUser}
+                onDelete={handleDelete}
+                onGenerate={handleGenerate}
+              />
             ))}
           </div>
         </>

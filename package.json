@@ -1,11 +1,13 @@
 {
-  "name": "class-enroll-frontend",
+  "name": "edumatch-resource-frontend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:prod": "vite --host 0.0.0.0 --mode production",
     "build": "vite build",
+    "build:prod": "vite build --mode production",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
