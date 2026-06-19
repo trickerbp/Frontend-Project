@@ -1,69 +1,106 @@
-import {
-  ArrowLeft,
-  Calendar,
-  CheckCircle,
-  Clock,
-  MapPin,
-  MessageSquareText,
-  User,
-  Users,
-  XCircle
-} from "lucide-react";
-import { useMemo, useState } from "react";
+import { ArrowLeft, Clock, FileText, Play, Trash2, UploadCloud, UserRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { getErrorMessage } from "../api/axiosClient";
-import StatusBadge, { getClassDisplayStatus } from "../components/StatusBadge";
+import EmptyState from "../components/EmptyState";
+import RecommendationList from "../components/RecommendationList";
+import StatusBadge, { CourseStatusBadge, LevelBadge, ProcessingStatusBadge } from "../components/StatusBadge";
 import { useApp } from "../store/authStore";
-import { formatDate } from "../utils/format";
+import { formatBytes, formatDate } from "../utils/format";
 
-export default function CourseDetail() {
+function toList(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string") return value.split(",").map((item) => item.trim()).filter(Boolean);
+  return [];
+}
+
+export default function CourseDetail({ resourcesOnly = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { classes, enrollments, currentUser, enrollClass } = useApp();
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
+  const {
+    courses,
+    courseResources,
+    currentUser,
+    recommendations,
+    loadCourseResources,
+    uploadCourseResource,
+    processResource,
+    deleteResource
+  } = useApp();
+  const [tab, setTab] = useState(resourcesOnly ? "resources" : "overview");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [busy, setBusy] = useState("");
 
-  const cls = classes.find((item) => item.id === id);
-  const enrollment = useMemo(
-    () => enrollments.find((item) => item.class_id === id),
-    [enrollments, id]
+  const course = courses.find((item) => item.id === id);
+  const resources = courseResources[id] || [];
+  const canManage = currentUser?.role === "admin" || currentUser?.role === "teacher";
+  const courseRecommendations = useMemo(
+    () => recommendations.filter((item) => item.course_id === id || item.course?.id === id),
+    [id, recommendations]
   );
 
-  if (!cls) {
+  useEffect(() => {
+    if (id && !courseResources[id]) {
+      loadCourseResources(id).catch(() => {});
+    }
+  }, [courseResources, id, loadCourseResources]);
+
+  if (!course) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm">
-        <p className="text-slate-500">Không tìm thấy lớp học.</p>
-        <Link to="/classes" className="mt-4 inline-flex font-medium text-teal-700 hover:text-teal-800">
-          Quay lại danh sách
-        </Link>
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="Không tìm thấy khóa học."
+        action={
+          <Link to="/courses" className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white">
+            Quay lại danh sách
+          </Link>
+        }
+      />
     );
   }
 
-  const status = getClassDisplayStatus(cls);
-  const fillPercent = Math.min(
-    100,
-    Math.round((cls.current_students / Math.max(1, cls.max_students)) * 100)
-  );
-
-  const handleEnroll = async () => {
-    setLoading(true);
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+    setBusy("upload");
     try {
-      await enrollClass(cls.id, note);
-      toast.success("Đăng ký thành công. Yêu cầu đang chờ admin duyệt.");
-      setNote("");
-    } catch (err) {
-      toast.error(getErrorMessage(err));
+      await uploadCourseResource(course.id, selectedFile);
+      toast.success("Đã upload tài nguyên.");
+      setSelectedFile(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     } finally {
-      setLoading(false);
+      setBusy("");
     }
   };
 
-  const canEnroll = currentUser.role === "student" && !enrollment && status === "open";
+  const handleProcess = async (resourceId) => {
+    setBusy(resourceId);
+    try {
+      await processResource(course.id, resourceId);
+      toast.success("Đã gửi xử lý tài nguyên.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const handleDelete = async (resourceId) => {
+    if (!window.confirm("Xóa tài nguyên này?")) return;
+    setBusy(resourceId);
+    try {
+      await deleteResource(course.id, resourceId);
+      toast.success("Đã xóa tài nguyên.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="space-y-5">
       <button
         type="button"
         onClick={() => navigate(-1)}
@@ -73,139 +110,201 @@ export default function CourseDetail() {
         Quay lại
       </button>
 
-      <article className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <header className="border-b border-slate-200 bg-slate-950 p-6 text-white">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-teal-300">Chi tiết lớp học</p>
-              <h1 className="mt-2 text-2xl font-semibold leading-tight">{cls.class_name}</h1>
-              <p className="mt-2 text-slate-300">{cls.description}</p>
+      <header className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap gap-2">
+              <CourseStatusBadge status={course.status} />
+              <LevelBadge level={course.level} />
+              {course.course_code && <StatusBadge status={course.course_code} />}
             </div>
-            <StatusBadge status={status} size="md" />
+            <h1 className="text-2xl font-semibold text-slate-950">{course.title || "Khóa học chưa đặt tên"}</h1>
+            <p className="mt-2 max-w-3xl text-slate-600">{course.description || "Chưa có mô tả."}</p>
           </div>
-        </header>
+          {canManage && (
+            <Link
+              to={`/teacher/courses/${course.id}/edit`}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Chỉnh sửa
+            </Link>
+          )}
+        </div>
+      </header>
 
-        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <section className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <InfoItem icon={User} label="Giảng viên" value={cls.teacher_name} />
-              <InfoItem icon={Clock} label="Lịch học" value={cls.schedule} />
-              <InfoItem icon={MapPin} label="Phòng học" value={`Phòng ${cls.room}`} />
-              <InfoItem icon={Calendar} label="Ngày tạo" value={formatDate(cls.created_at)} />
-            </div>
+      <div className="flex gap-2 overflow-x-auto app-scrollbar">
+        {[
+          ["overview", "Tổng quan"],
+          ["skills", "Kỹ năng & chủ đề"],
+          ["resources", "Tài nguyên"],
+          ...(currentUser?.role === "student" ? [["mapping", "Gợi ý/mapping"]] : [])
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            className={`min-h-10 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ${
+              tab === value ? "bg-teal-700 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Users className="h-4 w-4" />
-                  <span>
-                    Sĩ số {cls.current_students}/{cls.max_students}
-                  </span>
-                </div>
-                <span className="font-medium text-slate-700">{fillPercent}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full rounded-full ${
-                    fillPercent >= 100 ? "bg-rose-500" : fillPercent >= 80 ? "bg-amber-500" : "bg-teal-600"
-                  }`}
-                  style={{ width: `${fillPercent}%` }}
-                />
-              </div>
-            </div>
-
-            {currentUser.role === "student" && (
-              <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <h2 className="font-semibold text-slate-950">Trạng thái đăng ký</h2>
-
-                {enrollment ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={enrollment.status} />
-                      <span className="text-sm text-slate-500">
-                        Ngày đăng ký {formatDate(enrollment.created_at)}
-                      </span>
-                    </div>
-                    {enrollment.status === "approved" && (
-                      <p className="flex items-center gap-2 text-sm text-emerald-700">
-                        <CheckCircle className="h-4 w-4" />
-                        Admin đã duyệt đăng ký này.
-                      </p>
-                    )}
-                    {enrollment.status === "rejected" && (
-                      <p className="flex items-center gap-2 text-sm text-rose-700">
-                        <XCircle className="h-4 w-4" />
-                        Đăng ký đã bị từ chối. Backend hiện không cho đăng ký lại cùng lớp.
-                      </p>
-                    )}
-                    {enrollment.note && (
-                      <p className="rounded-lg bg-white p-3 text-sm text-slate-600">
-                        Ghi chú của bạn: {enrollment.note}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mt-4 space-y-3">
-                    <label htmlFor="note" className="block text-sm font-medium text-slate-700">
-                      Ghi chú cho admin
-                    </label>
-                    <textarea
-                      id="note"
-                      value={note}
-                      onChange={(event) => setNote(event.target.value)}
-                      rows={4}
-                      maxLength={500}
-                      placeholder="Ví dụ: Em muốn đăng ký lớp này để bổ sung kiến thức nền tảng."
-                      className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleEnroll}
-                      disabled={!canEnroll || loading}
-                      className="min-h-11 w-full rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:bg-slate-300"
-                    >
-                      {loading ? "Đang gửi..." : status === "open" ? "Đăng ký lớp học" : "Không thể đăng ký"}
-                    </button>
-                  </div>
-                )}
-              </section>
-            )}
-          </section>
-
-          <aside className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <h2 className="font-semibold text-slate-950">Tóm tắt</h2>
+      {tab === "overview" && (
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="font-semibold text-slate-950">Mục tiêu nghề nghiệp</h2>
+            <TagBlock items={toList(course.target_goals)} empty="Chưa khai báo mục tiêu." />
+          </div>
+          <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="font-semibold text-slate-950">Thông tin nhanh</h2>
             <dl className="mt-4 space-y-3 text-sm">
-              <SummaryRow label="Trạng thái" value={<StatusBadge status={status} />} />
-              <SummaryRow label="Còn lại" value={`${Math.max(0, cls.max_students - cls.current_students)} chỗ`} />
-              <SummaryRow label="Cập nhật" value={formatDate(cls.updated_at)} />
-              <SummaryRow label="ID lớp" value={cls.id} wrap />
+              <SummaryRow icon={UserRound} label="Giảng viên" value={course.teacher_name || course.instructor || course.teacher_id} />
+              <SummaryRow icon={Clock} label="Thời lượng" value={course.duration_hours ? `${course.duration_hours} giờ` : "-"} />
+              <SummaryRow icon={FileText} label="Tài nguyên" value={`${resources.length || course.resource_count || 0} file`} />
+              <SummaryRow label="Cập nhật" value={formatDate(course.updated_at)} />
             </dl>
           </aside>
-        </div>
-      </article>
+        </section>
+      )}
+
+      {tab === "skills" && (
+        <section className="grid gap-5 lg:grid-cols-3">
+          <Panel title="Tag thủ công" items={toList(course.manual_tags)} />
+          <Panel title="Kỹ năng trích xuất" items={toList(course.extracted_skills)} />
+          <Panel title="Chủ đề trích xuất" items={toList(course.extracted_topics)} />
+        </section>
+      )}
+
+      {tab === "resources" && (
+        <section className="space-y-5">
+          {canManage && (
+            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="font-semibold text-slate-950">Upload tài nguyên</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center hover:border-teal-300 hover:bg-teal-50">
+                  <UploadCloud className="mb-2 h-6 w-6 text-teal-700" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {selectedFile ? selectedFile.name : "Chọn file .pdf, .pptx hoặc .docx"}
+                  </span>
+                  {selectedFile && <span className="mt-1 text-xs text-slate-500">{formatBytes(selectedFile.size)}</span>}
+                  <input
+                    type="file"
+                    accept=".pdf,.pptx,.docx"
+                    className="sr-only"
+                    onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleUpload}
+                  disabled={!selectedFile || busy === "upload"}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:bg-slate-300"
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  {busy === "upload" ? "Đang upload..." : "Upload"}
+                </button>
+              </div>
+            </div>
+          )}
+          <ResourceList resources={resources} busy={busy} canManage={canManage} onProcess={handleProcess} onDelete={handleDelete} />
+        </section>
+      )}
+
+      {tab === "mapping" && (
+        <section>
+          {courseRecommendations.length > 0 ? (
+            <RecommendationList recommendations={courseRecommendations} courses={courses} />
+          ) : (
+            <EmptyState icon={FileText} title="Chưa có dữ liệu mapping cho khóa học này." />
+          )}
+        </section>
+      )}
     </div>
   );
 }
 
-function InfoItem({ icon: Icon, label, value }) {
+function ResourceList({ resources, busy, canManage, onProcess, onDelete }) {
+  if (!resources.length) return <EmptyState icon={FileText} title="Khóa học chưa có tài nguyên." />;
+
   return (
-    <div className="flex gap-3 rounded-lg border border-slate-200 bg-white p-4">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-xs font-medium uppercase text-slate-400">{label}</p>
-        <p className="mt-1 break-words text-sm font-medium text-slate-900">{value || "-"}</p>
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="divide-y divide-slate-100">
+        {resources.map((resource) => (
+          <div key={resource.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <h3 className="truncate font-medium text-slate-950">{resource.file_name || resource.name}</h3>
+                <ProcessingStatusBadge status={resource.processing_status || resource.status} />
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                {resource.file_type || resource.content_type || "file"} · {formatBytes(resource.file_size || resource.size)}
+              </p>
+              {resource.summary && <p className="mt-3 line-clamp-2 text-sm text-slate-600">{resource.summary}</p>}
+              <TagBlock items={toList(resource.extracted_skills || resource.extracted_topics)} />
+            </div>
+            {canManage && (
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => onProcess(resource.id)}
+                  disabled={busy === resource.id}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-cyan-200 px-3 py-1.5 text-sm font-medium text-cyan-700 hover:bg-cyan-50 disabled:opacity-60"
+                >
+                  <Play className="h-4 w-4" />
+                  Xử lý
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(resource.id)}
+                  disabled={busy === resource.id}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Xóa
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function SummaryRow({ label, value, wrap = false }) {
+function Panel({ title, items }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="font-semibold text-slate-950">{title}</h2>
+      <TagBlock items={items} />
+    </div>
+  );
+}
+
+function TagBlock({ items, empty = "Chưa có dữ liệu." }) {
+  if (!items.length) return <p className="mt-3 text-sm text-slate-500">{empty}</p>;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span key={item} className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-medium text-slate-700">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function SummaryRow({ icon: Icon, label, value }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className={`text-right font-medium text-slate-900 ${wrap ? "break-all" : ""}`}>{value || "-"}</dd>
+      <dt className="flex items-center gap-2 text-slate-500">
+        {Icon && <Icon className="h-4 w-4" />}
+        {label}
+      </dt>
+      <dd className="max-w-40 break-words text-right font-medium text-slate-900">{value || "-"}</dd>
     </div>
   );
 }

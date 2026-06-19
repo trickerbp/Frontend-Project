@@ -1,11 +1,15 @@
 import {
+  Activity,
   BookOpen,
-  ClipboardList,
+  FileText,
   GraduationCap,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Menu,
-  Settings,
+  Target,
+  UploadCloud,
+  UserRound,
   Users,
   X
 } from "lucide-react";
@@ -13,6 +17,12 @@ import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useApp } from "../store/authStore";
+
+const roleLabels = {
+  admin: "Quản trị viên",
+  teacher: "Giảng viên",
+  student: "Học viên"
+};
 
 function NavItem({ to, icon: Icon, children, onClick }) {
   return (
@@ -29,7 +39,7 @@ function NavItem({ to, icon: Icon, children, onClick }) {
       }
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span>{children}</span>
+      <span className="truncate">{children}</span>
     </NavLink>
   );
 }
@@ -49,21 +59,39 @@ export default function Layout() {
       <NavItem to="/dashboard" icon={LayoutDashboard} onClick={() => setOpen(false)}>
         Tổng quan
       </NavItem>
-      <NavItem to="/classes" icon={BookOpen} onClick={() => setOpen(false)}>
-        Lớp học
+      <NavItem to="/courses" icon={BookOpen} onClick={() => setOpen(false)}>
+        Khóa học
       </NavItem>
+      {currentUser?.role === "teacher" && (
+        <>
+          <NavItem to="/teacher/courses" icon={UploadCloud} onClick={() => setOpen(false)}>
+            Khóa học của tôi
+          </NavItem>
+          <NavItem to="/teacher/courses" icon={FileText} onClick={() => setOpen(false)}>
+            Tài nguyên xử lý
+          </NavItem>
+        </>
+      )}
       {currentUser?.role === "student" && (
-        <NavItem to="/my-enrollments" icon={ClipboardList} onClick={() => setOpen(false)}>
-          Đăng ký của tôi
-        </NavItem>
+        <>
+          <NavItem to="/student/profile" icon={Target} onClick={() => setOpen(false)}>
+            Hồ sơ học tập
+          </NavItem>
+          <NavItem to="/student/recommendations" icon={ListChecks} onClick={() => setOpen(false)}>
+            Gợi ý khóa học
+          </NavItem>
+        </>
       )}
       {currentUser?.role === "admin" && (
         <>
-          <NavItem to="/admin/classes" icon={Settings} onClick={() => setOpen(false)}>
-            Quản lý lớp
+          <NavItem to="/admin/courses" icon={FileText} onClick={() => setOpen(false)}>
+            Quản lý khóa học
           </NavItem>
-          <NavItem to="/admin/enrollments" icon={Users} onClick={() => setOpen(false)}>
-            Duyệt đăng ký
+          <NavItem to="/admin/processing-logs" icon={Activity} onClick={() => setOpen(false)}>
+            Nhật ký xử lý
+          </NavItem>
+          <NavItem to="/admin/users" icon={Users} onClick={() => setOpen(false)}>
+            Người dùng
           </NavItem>
         </>
       )}
@@ -88,7 +116,7 @@ export default function Layout() {
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-teal-700 text-white">
                 <GraduationCap className="h-5 w-5" />
               </span>
-              <span className="truncate text-base font-semibold text-slate-950">ClassEnroll</span>
+              <span className="truncate text-base font-semibold text-slate-950">EduMatch Resource</span>
             </Link>
             <nav className="hidden items-center gap-1 lg:flex">{nav}</nav>
           </div>
@@ -98,12 +126,10 @@ export default function Layout() {
               <p className="max-w-44 truncate text-sm font-medium text-slate-950">
                 {currentUser?.name}
               </p>
-              <p className="text-xs text-slate-500">
-                {currentUser?.role === "admin" ? "Quản trị viên" : "Sinh viên"}
-              </p>
+              <p className="text-xs text-slate-500">{roleLabels[currentUser?.role] || "Người dùng"}</p>
             </div>
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-cyan-50 text-sm font-semibold text-cyan-800 ring-1 ring-cyan-100">
-              {currentUser?.name?.charAt(0)?.toUpperCase() || "U"}
+              <UserRound className="h-4 w-4" />
             </div>
             <button
               type="button"
@@ -132,7 +158,7 @@ export default function Layout() {
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-teal-700 text-white">
                   <GraduationCap className="h-5 w-5" />
                 </span>
-                <span className="font-semibold text-slate-950">ClassEnroll</span>
+                <span className="font-semibold text-slate-950">EduMatch Resource</span>
               </div>
               <button
                 type="button"
