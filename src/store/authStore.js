@@ -35,6 +35,20 @@ function asArray(value) {
   return [];
 }
 
+function latestStudentProfile(value) {
+  const profiles = asArray(value);
+  if (profiles.length) return profiles[0];
+  return value && !Array.isArray(value) ? value : null;
+}
+
+function recommendationItems(value) {
+  if (Array.isArray(value)) {
+    if (Array.isArray(value[0]?.results)) return value[0].results;
+    return value;
+  }
+  return asArray(value);
+}
+
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => storage.getUser());
   const [courses, setCourses] = useState([]);
@@ -84,8 +98,8 @@ export function AppProvider({ children }) {
           studentProfilesApi.me().catch(() => null),
           recommendationsApi.mine().catch(() => [])
         ]);
-        setStudentProfile(profile);
-        setRecommendations(asArray(nextRecommendations));
+        setStudentProfile(latestStudentProfile(profile));
+        setRecommendations(recommendationItems(nextRecommendations));
         setProcessingLogs([]);
         setUsers([]);
       } else if (user.role === "admin") {
@@ -221,8 +235,7 @@ export function AppProvider({ children }) {
 
   const generateRecommendations = useCallback(async () => {
     const generated = await recommendationsApi.generate();
-    const list = asArray(generated);
-    setRecommendations(list.length ? list : asArray(generated?.recommendations));
+    setRecommendations(recommendationItems(generated));
     return generated;
   }, []);
 

@@ -232,19 +232,24 @@ function ResourceList({ resources, busy, canManage, onProcess, onDelete }) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="divide-y divide-slate-100">
-        {resources.map((resource) => (
+        {resources.map((resource) => {
+          const extractedTags = [
+            ...toList(resource.extracted_skills),
+            ...toList(resource.extracted_topics)
+          ];
+          return (
           <div key={resource.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <FileText className="h-4 w-4 text-slate-400" />
-                <h3 className="truncate font-medium text-slate-950">{resource.file_name || resource.name}</h3>
+                <h3 className="truncate font-medium text-slate-950">{resource.original_file_name || resource.file_name || resource.name}</h3>
                 <ProcessingStatusBadge status={resource.processing_status || resource.status} />
               </div>
               <p className="mt-1 text-sm text-slate-500">
                 {resource.file_type || resource.content_type || "file"} · {formatBytes(resource.file_size || resource.size)}
               </p>
               {resource.summary && <p className="mt-3 line-clamp-2 text-sm text-slate-600">{resource.summary}</p>}
-              <TagBlock items={toList(resource.extracted_skills || resource.extracted_topics)} />
+              <TagBlock items={extractedTags} />
             </div>
             {canManage && (
               <div className="flex flex-wrap justify-end gap-2">
@@ -269,7 +274,8 @@ function ResourceList({ resources, busy, canManage, onProcess, onDelete }) {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
