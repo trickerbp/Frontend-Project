@@ -117,6 +117,14 @@ export const authApi = {
 };
 
 export const coursesApi = {
+  async extract(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const { data } = await api.post("/api/courses/extract-preview", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    return data;
+  },
   async list(params = {}) {
     const { data } = await api.get("/api/courses", { params });
     return data;
@@ -167,6 +175,14 @@ export const courseResourcesApi = {
 };
 
 export const studentProfilesApi = {
+  async extract(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const { data } = await api.post("/api/student-profiles/extract-preview", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    return data;
+  },
   async me() {
     const { data } = await api.get("/api/student-profiles/me");
     return data;

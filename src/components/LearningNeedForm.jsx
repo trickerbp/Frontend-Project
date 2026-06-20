@@ -1,5 +1,5 @@
-import { Save, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Save, Sparkles, UploadCloud } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 function listToText(value) {
   if (Array.isArray(value)) return value.join(", ");
@@ -13,7 +13,7 @@ function textToList(value) {
     .filter(Boolean);
 }
 
-export default function LearningNeedForm({ profile, onSubmit, onGenerate, saving, generating }) {
+export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtract, saving, generating, extracting = false }) {
   const initial = useMemo(
     () => ({
       career_goal: profile?.career_goal || "",
@@ -28,6 +28,10 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, saving
   );
   const [form, setForm] = useState(initial);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setForm(initial);
+  }, [initial]);
 
   const handleChange = (event) => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
@@ -51,6 +55,28 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, saving
     });
   };
 
+  const handleExtract = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !onExtract) return;
+    setError("");
+    try {
+      const extracted = await onExtract(file);
+      setForm((prev) => ({
+        ...prev,
+        career_goal: extracted.career_goal || prev.career_goal,
+        current_level: extracted.current_level || prev.current_level,
+        current_skills: listToText(extracted.current_skills),
+        desired_skills: listToText(extracted.desired_skills),
+        interested_topics: listToText(extracted.interested_topics),
+        hours_per_week: extracted.hours_per_week || prev.hours_per_week,
+        learning_format: extracted.learning_format || prev.learning_format
+      }));
+    } catch {
+      setError("Không rút trích được hồ sơ từ file này.");
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-5">
       {error && (
@@ -60,6 +86,24 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, saving
       )}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        {onExtract && (
+          <div className="mb-5 rounded-lg border border-dashed border-teal-200 bg-teal-50 p-4">
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-teal-700 shadow-sm ring-1 ring-teal-200 hover:bg-teal-100">
+              <UploadCloud className="h-4 w-4" />
+              {extracting ? "Đang rút trích..." : "Upload hồ sơ/CV để tự điền form"}
+              <input
+                type="file"
+                accept=".pdf,.pptx,.docx"
+                className="sr-only"
+                disabled={extracting}
+                onChange={handleExtract}
+              />
+            </label>
+            <p className="mt-2 text-sm text-teal-800">
+              Hệ thống sẽ đọc file, điền trước mục tiêu, kỹ năng, chủ đề quan tâm và cách học. Bạn có thể chỉnh lại rồi tạo gợi ý.
+            </p>
+          </div>
+        )}
         <h2 className="text-base font-semibold text-slate-950">Mục tiêu</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Field label="Mục tiêu nghề nghiệp" htmlFor="career_goal">

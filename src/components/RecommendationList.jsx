@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 function toList(value) {
@@ -9,6 +9,7 @@ function toList(value) {
 
 function scoreToPercent(score) {
   const numeric = Number(score || 0);
+  if (numeric <= 1) return Math.round(numeric * 100);
   return numeric <= 10 ? Math.round(numeric * 10) : Math.min(100, Math.round(numeric));
 }
 
@@ -22,6 +23,8 @@ export default function RecommendationList({ recommendations = [], courses = [] 
           {};
         const percent = scoreToPercent(item.score || item.match_score);
         const skills = toList(item.matched_skills);
+        const missingSkills = toList(item.missing_skills);
+        const unmetPrerequisites = toList(item.unmet_prerequisites);
         const reasons = toList(item.matched_reasons || item.reasons);
 
         return (
@@ -59,6 +62,20 @@ export default function RecommendationList({ recommendations = [], courses = [] 
                     ))}
                   </ul>
                 )}
+                {(missingSkills.length > 0 || unmetPrerequisites.length > 0) && (
+                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    <div className="flex gap-2 font-medium">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>Cần cân nhắc trước khi chọn</span>
+                    </div>
+                    {missingSkills.length > 0 && (
+                      <p className="mt-2">Kỹ năng còn thiếu: {missingSkills.slice(0, 6).join(", ")}</p>
+                    )}
+                    {unmetPrerequisites.length > 0 && (
+                      <p className="mt-1">Tiên quyết chưa chắc đáp ứng: {unmetPrerequisites.slice(0, 3).join(", ")}</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -76,7 +93,7 @@ export default function RecommendationList({ recommendations = [], courses = [] 
                     to={`/courses/${course.id || item.course_id}`}
                     className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    Xem khóa học
+                    Xem nội dung môn
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : null}

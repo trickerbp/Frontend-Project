@@ -1,5 +1,5 @@
-import { Save } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Save, UploadCloud } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 function listToText(value) {
   if (Array.isArray(value)) return value.join(", ");
@@ -13,7 +13,7 @@ function textToList(value) {
     .filter(Boolean);
 }
 
-export default function CourseForm({ initialCourse, onSubmit, submitting = false }) {
+export default function CourseForm({ initialCourse, onSubmit, onExtract, submitting = false, extracting = false }) {
   const initial = useMemo(
     () => ({
       title: initialCourse?.title || initialCourse?.name || "",
@@ -22,6 +22,7 @@ export default function CourseForm({ initialCourse, onSubmit, submitting = false
       level: initialCourse?.level || "beginner",
       target_goals: listToText(initialCourse?.target_goals),
       manual_tags: listToText(initialCourse?.manual_tags),
+      tools: listToText(initialCourse?.tools),
       duration_hours: initialCourse?.duration_hours || "",
       status: initialCourse?.status || "draft"
     }),
@@ -29,6 +30,10 @@ export default function CourseForm({ initialCourse, onSubmit, submitting = false
   );
   const [form, setForm] = useState(initial);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setForm(initial);
+  }, [initial]);
 
   const handleChange = (event) => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
@@ -53,9 +58,34 @@ export default function CourseForm({ initialCourse, onSubmit, submitting = false
       level: form.level,
       target_goals: textToList(form.target_goals),
       manual_tags: textToList(form.manual_tags),
+      tools: textToList(form.tools),
       duration_hours: form.duration_hours ? Number(form.duration_hours) : null,
       status: form.status
     });
+  };
+
+  const handleExtract = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !onExtract) return;
+    setError("");
+    try {
+      const extracted = await onExtract(file);
+      setForm((prev) => ({
+        ...prev,
+        title: extracted.title || prev.title,
+        course_code: prev.course_code || extracted.course_code || "",
+        description: extracted.description || prev.description,
+        level: extracted.level || prev.level,
+        target_goals: listToText(extracted.target_goals),
+        manual_tags: listToText(extracted.manual_tags || extracted.extracted_skills),
+        tools: listToText(extracted.tools),
+        duration_hours: extracted.duration_hours || prev.duration_hours,
+        status: prev.status || extracted.status || "draft"
+      }));
+    } catch {
+      setError("Không rút trích được dữ liệu từ file này.");
+    }
   };
 
   return (
@@ -67,6 +97,24 @@ export default function CourseForm({ initialCourse, onSubmit, submitting = false
       )}
 
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        {onExtract && (
+          <div className="mb-5 rounded-lg border border-dashed border-teal-200 bg-teal-50 p-4">
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-teal-700 shadow-sm ring-1 ring-teal-200 hover:bg-teal-100">
+              <UploadCloud className="h-4 w-4" />
+              {extracting ? "Đang rút trích..." : "Upload tài liệu để tự điền form"}
+              <input
+                type="file"
+                accept=".pdf,.pptx,.docx"
+                className="sr-only"
+                disabled={extracting}
+                onChange={handleExtract}
+              />
+            </label>
+            <p className="mt-2 text-sm text-teal-800">
+              Hệ thống sẽ đọc PDF/DOCX/PPTX, điền trước mô tả, trình độ, kỹ năng và mục tiêu. Giảng viên có thể chỉnh lại trước khi lưu.
+            </p>
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Tên khóa học" htmlFor="title">
             <input
@@ -148,6 +196,17 @@ export default function CourseForm({ initialCourse, onSubmit, submitting = false
               onChange={handleChange}
               className="input resize-none"
               placeholder="python, excel, dashboard, ..."
+            />
+          </Field>
+          <Field label="Công cụ sử dụng" htmlFor="tools">
+            <textarea
+              id="tools"
+              name="tools"
+              rows={3}
+              value={form.tools}
+              onChange={handleChange}
+              className="input resize-none"
+              placeholder="VS Code, Git, Figma, Docker, ..."
             />
           </Field>
         </div>

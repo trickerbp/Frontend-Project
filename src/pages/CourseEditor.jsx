@@ -10,8 +10,9 @@ import { useState } from "react";
 export default function CourseEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { courses, createCourse, updateCourse } = useApp();
+  const { courses, createCourse, updateCourse, extractCourseDraft } = useApp();
   const [submitting, setSubmitting] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const editing = Boolean(id);
   const course = courses.find((item) => item.id === id);
 
@@ -41,6 +42,20 @@ export default function CourseEditor() {
     }
   };
 
+  const handleExtract = async (file) => {
+    setExtracting(true);
+    try {
+      const extracted = await extractCourseDraft(file);
+      toast.success("Đã rút trích dữ liệu khóa học. Bạn có thể chỉnh lại trước khi lưu.");
+      return extracted;
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+      throw error;
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <Link
@@ -56,7 +71,13 @@ export default function CourseEditor() {
           {editing ? "Chỉnh sửa khóa học" : "Tạo khóa học mới"}
         </h1>
       </div>
-      <CourseForm initialCourse={course} onSubmit={handleSubmit} submitting={submitting} />
+      <CourseForm
+        initialCourse={course}
+        onSubmit={handleSubmit}
+        onExtract={handleExtract}
+        submitting={submitting}
+        extracting={extracting}
+      />
     </div>
   );
 }

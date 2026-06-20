@@ -65,7 +65,7 @@ export default function CourseDetail({ resourcesOnly = false }) {
     setBusy("upload");
     try {
       await uploadCourseResource(course.id, selectedFile);
-      toast.success("Đã upload tài nguyên.");
+      toast.success("Đã upload và tự rút trích tài nguyên.");
       setSelectedFile(null);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -78,7 +78,7 @@ export default function CourseDetail({ resourcesOnly = false }) {
     setBusy(resourceId);
     try {
       await processResource(course.id, resourceId);
-      toast.success("Đã gửi xử lý tài nguyên.");
+      toast.success("Đã xử lý lại tài nguyên.");
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -260,7 +260,7 @@ function ResourceList({ resources, busy, canManage, onProcess, onDelete }) {
                   className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-cyan-200 px-3 py-1.5 text-sm font-medium text-cyan-700 hover:bg-cyan-50 disabled:opacity-60"
                 >
                   <Play className="h-4 w-4" />
-                  Xử lý
+                  Xử lý lại
                 </button>
                 <button
                   type="button"

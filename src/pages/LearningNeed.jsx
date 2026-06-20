@@ -8,10 +8,16 @@ import LearningNeedForm from "../components/LearningNeedForm";
 import { useApp } from "../store/authStore";
 
 export default function LearningNeed() {
-  const { studentProfile, saveStudentProfile, generateRecommendations } = useApp();
+  const {
+    studentProfile,
+    saveStudentProfile,
+    extractStudentProfileDraft,
+    generateRecommendations
+  } = useApp();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   const handleSave = async (payload) => {
     setSaving(true);
@@ -38,6 +44,20 @@ export default function LearningNeed() {
     }
   };
 
+  const handleExtract = async (file) => {
+    setExtracting(true);
+    try {
+      const extracted = await extractStudentProfileDraft(file);
+      toast.success("Đã rút trích hồ sơ. Bạn có thể chỉnh lại trước khi lưu.");
+      return extracted;
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+      throw error;
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -59,8 +79,10 @@ export default function LearningNeed() {
         profile={studentProfile}
         onSubmit={handleSave}
         onGenerate={handleGenerate}
+        onExtract={handleExtract}
         saving={saving}
         generating={generating}
+        extracting={extracting}
       />
 
       {studentProfile && (

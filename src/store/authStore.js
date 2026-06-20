@@ -41,12 +41,18 @@ function latestStudentProfile(value) {
   return value && !Array.isArray(value) ? value : null;
 }
 
+function scoreValue(item) {
+  return Number(item?.score ?? item?.match_score ?? 0);
+}
+
 function recommendationItems(value) {
+  let items;
   if (Array.isArray(value)) {
-    if (Array.isArray(value[0]?.results)) return value[0].results;
-    return value;
+    items = Array.isArray(value[0]?.results) ? value[0].results : value;
+  } else {
+    items = asArray(value);
   }
-  return asArray(value);
+  return [...items].sort((a, b) => scoreValue(b) - scoreValue(a));
 }
 
 export function AppProvider({ children }) {
@@ -201,6 +207,8 @@ export function AppProvider({ children }) {
 
   const uploadCourseResource = useCallback(async (courseId, file) => {
     const created = await courseResourcesApi.upload(courseId, file);
+    const refreshedCourse = await coursesApi.get(courseId).catch(() => null);
+    if (refreshedCourse) setCourses((prev) => replaceById(prev, refreshedCourse));
     setCourseResources((prev) => ({
       ...prev,
       [courseId]: [created, ...(prev[courseId] || [])]
@@ -210,6 +218,8 @@ export function AppProvider({ children }) {
 
   const processResource = useCallback(async (courseId, resourceId) => {
     const updated = await courseResourcesApi.process(resourceId);
+    const refreshedCourse = await coursesApi.get(courseId).catch(() => null);
+    if (refreshedCourse) setCourses((prev) => replaceById(prev, refreshedCourse));
     setCourseResources((prev) => ({
       ...prev,
       [courseId]: replaceById(prev[courseId] || [], updated)
@@ -232,6 +242,13 @@ export function AppProvider({ children }) {
     setStudentProfile(saved);
     return saved;
   }, [studentProfile]);
+
+  const extractCourseDraft = useCallback(async (file) => coursesApi.extract(file), []);
+
+  const extractStudentProfileDraft = useCallback(
+    async (file) => studentProfilesApi.extract(file),
+    []
+  );
 
   const generateRecommendations = useCallback(async () => {
     const generated = await recommendationsApi.generate();
@@ -263,6 +280,8 @@ export function AppProvider({ children }) {
       processResource,
       deleteResource,
       saveStudentProfile,
+      extractCourseDraft,
+      extractStudentProfileDraft,
       generateRecommendations
     }),
     [
@@ -288,6 +307,8 @@ export function AppProvider({ children }) {
       processResource,
       deleteResource,
       saveStudentProfile,
+      extractCourseDraft,
+      extractStudentProfileDraft,
       generateRecommendations
     ]
   );
