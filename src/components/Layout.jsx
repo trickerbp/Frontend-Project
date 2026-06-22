@@ -1,6 +1,7 @@
 import {
   Activity,
   BookOpen,
+  FileText,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
