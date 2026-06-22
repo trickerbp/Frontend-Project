@@ -10,18 +10,19 @@ import { useState } from "react";
 export default function CourseEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { courses, createCourse, updateCourse, extractCourseDraft } = useApp();
+  const { courses, createCourse, updateCourse, extractCourseDraft, currentUser } = useApp();
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const editing = Boolean(id);
   const course = courses.find((item) => item.id === id);
+  const listPath = currentUser?.role === "teacher" ? "/teacher/courses" : "/courses";
 
   if (editing && !course) {
     return (
       <EmptyState
         title="Không tìm thấy khóa học để chỉnh sửa."
         action={
-          <Link to="/courses" className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white">
+          <Link to={listPath} className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white">
             Quay lại danh sách
           </Link>
         }
@@ -59,7 +60,7 @@ export default function CourseEditor() {
   return (
     <div className="space-y-5">
       <Link
-        to={editing ? `/courses/${id}` : "/courses"}
+        to={editing ? `/courses/${id}` : listPath}
         className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
       >
         <ArrowLeft className="h-4 w-4" />

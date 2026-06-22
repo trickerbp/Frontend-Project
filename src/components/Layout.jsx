@@ -1,7 +1,6 @@
 import {
   Activity,
   BookOpen,
-  FileText,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
@@ -59,16 +58,15 @@ export default function Layout() {
       <NavItem to="/dashboard" icon={LayoutDashboard} onClick={() => setOpen(false)}>
         Tổng quan
       </NavItem>
+      {currentUser?.role === "student" && (
       <NavItem to="/courses" icon={BookOpen} onClick={() => setOpen(false)}>
         Khóa học
       </NavItem>
+      )}
       {currentUser?.role === "teacher" && (
         <>
           <NavItem to="/teacher/courses" icon={UploadCloud} onClick={() => setOpen(false)}>
             Khóa học của tôi
-          </NavItem>
-          <NavItem to="/teacher/courses" icon={FileText} onClick={() => setOpen(false)}>
-            Tài nguyên xử lý
           </NavItem>
         </>
       )}

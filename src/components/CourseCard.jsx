@@ -1,4 +1,4 @@
-import { BookOpen, Clock, FileText, Tags, UserRound } from "lucide-react";
+import { Clock, FileText, Tags, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import StatusBadge, { CourseStatusBadge, LevelBadge } from "./StatusBadge";
 
@@ -6,6 +6,16 @@ function toList(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (typeof value === "string") return value.split(",").map((item) => item.trim()).filter(Boolean);
   return [];
+}
+
+function uniqueList(value) {
+  const seen = new Set();
+  return toList(value).filter((item) => {
+    const key = item.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function TagList({ items, limit = 5 }) {
@@ -34,8 +44,7 @@ function TagList({ items, limit = 5 }) {
 }
 
 export default function CourseCard({ course, resources = [], currentUser, onDelete, onGenerate }) {
-  const tags = toList(course.manual_tags);
-  const skills = toList(course.extracted_skills);
+  const tags = uniqueList(course.manual_tags);
   const canManage = currentUser?.role === "admin" || currentUser?.role === "teacher";
 
   return (
@@ -78,21 +87,12 @@ export default function CourseCard({ course, resources = [], currentUser, onDele
           </div>
         </div>
 
-        <div className="mt-5 space-y-3">
-          <div>
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-slate-400">
-              <Tags className="h-3.5 w-3.5" />
-              Tag
-            </div>
-            <TagList items={tags} />
+        <div className="mt-5">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-slate-400">
+            <Tags className="h-3.5 w-3.5" />
+            Kỹ năng/tag
           </div>
-          <div>
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-slate-400">
-              <BookOpen className="h-3.5 w-3.5" />
-              Kỹ năng
-            </div>
-            <TagList items={skills} limit={4} />
-          </div>
+          <TagList items={tags} />
         </div>
       </div>
 
