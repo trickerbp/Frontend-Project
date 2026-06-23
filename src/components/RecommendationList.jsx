@@ -1,4 +1,5 @@
 import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 function toList(value) {
@@ -13,7 +14,21 @@ function scoreToPercent(score) {
   return numeric <= 10 ? Math.round(numeric * 10) : Math.min(100, Math.round(numeric));
 }
 
-export default function RecommendationList({ recommendations = [], courses = [] }) {
+function scoreDetailItems(detail = {}) {
+  return [
+    ["Kỹ năng", detail.skill_gap_score],
+    ["Ngữ nghĩa", detail.semantic_match_score],
+    ["Hành vi", detail.behavior_match_score],
+    ["Lĩnh vực", detail.topic_match_score],
+    ["Mục tiêu", detail.goal_match_score]
+  ]
+    .map(([label, value]) => [label, scoreToPercent(value)])
+    .filter(([, value]) => value > 0);
+}
+
+export default function RecommendationList({ recommendations = [], courses = [], onTrack }) {
+  const [selectedIds, setSelectedIds] = useState([]);
+
   return (
     <div className="space-y-3">
       {recommendations.map((item, index) => {
@@ -26,6 +41,9 @@ export default function RecommendationList({ recommendations = [], courses = [] 
         const missingSkills = toList(item.missing_skills);
         const unmetPrerequisites = toList(item.unmet_prerequisites);
         const reasons = toList(item.matched_reasons || item.reasons);
+        const details = scoreDetailItems(item.score_detail);
+        const courseId = course.id || item.course_id;
+        const selected = selectedIds.includes(courseId);
 
         return (
           <article key={item.id || item.course_id || index} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -81,16 +99,42 @@ export default function RecommendationList({ recommendations = [], courses = [] 
               <div className="space-y-3">
                 <div>
                   <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="font-medium text-slate-700">Score</span>
+                    <span className="font-medium text-slate-700">Phù hợp</span>
                     <span className="font-semibold text-teal-700">{percent}%</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                     <div className="h-full rounded-full bg-teal-600" style={{ width: `${percent}%` }} />
                   </div>
                 </div>
-                {course.id || item.course_id ? (
+                {details.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    {details.slice(0, 4).map(([label, value]) => (
+                      <div key={label} className="rounded-md bg-slate-50 px-2 py-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{label}</span>
+                          <span className="font-semibold text-slate-800">{value}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {courseId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedIds((prev) => (prev.includes(courseId) ? prev : [...prev, courseId]));
+                      onTrack?.(courseId, "select", "recommendation_card");
+                    }}
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800"
+                  >
+                    {selected ? "Đã chọn" : "Chọn môn"}
+                    <CheckCircle2 className="h-4 w-4" />
+                  </button>
+                ) : null}
+                {courseId ? (
                   <Link
-                    to={`/courses/${course.id || item.course_id}`}
+                    to={`/courses/${courseId}`}
+                    onClick={() => onTrack?.(courseId, "view", "recommendation_card")}
                     className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
                     Xem nội dung môn

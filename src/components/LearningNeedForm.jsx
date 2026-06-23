@@ -1,4 +1,4 @@
-import { Save, Sparkles, UploadCloud } from "lucide-react";
+import { Save, SlidersHorizontal, Sparkles, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 function listToText(value) {
@@ -7,52 +7,135 @@ function listToText(value) {
 }
 
 function textToList(value) {
-  return value
+  return String(value || "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 }
 
-export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtract, saving, generating, extracting = false }) {
+function asList(value) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
+}
+
+function toggleValue(values, value) {
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
+}
+
+function parseHours(value) {
+  const match = String(value || "").match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+const DOMAIN_OPTIONS = [
+  "Trí tuệ nhân tạo",
+  "Data Science",
+  "Phân tích dữ liệu",
+  "Web/App",
+  "Backend/API",
+  "UI/UX",
+  "DevOps/Cloud"
+];
+
+const OUTCOME_OPTIONS = [
+  "Tìm khóa dễ bắt đầu",
+  "Làm được project",
+  "Đi thực tập/đi làm",
+  "Đổi hướng nghề nghiệp",
+  "Bổ sung môn còn yếu"
+];
+
+const TIME_OPTIONS = ["2-4 giờ/tuần", "5-8 giờ/tuần", "9-12 giờ/tuần", "Chưa rõ"];
+const FORMAT_OPTIONS = [
+  ["online", "Online"],
+  ["offline", "Offline"],
+  ["hybrid", "Hybrid"],
+  ["", "Chưa rõ"]
+];
+const LEVEL_OPTIONS = [
+  ["", "Chưa rõ"],
+  ["beginner", "Mới bắt đầu"],
+  ["intermediate", "Đã biết cơ bản"],
+  ["advanced", "Muốn học nâng cao"]
+];
+
+export default function LearningNeedForm({
+  profile,
+  onSubmit,
+  onGenerate,
+  onExtract,
+  saving,
+  generating,
+  extracting = false
+}) {
   const initial = useMemo(
     () => ({
+      intent_text: profile?.intent_text || profile?.cleaned_text || "",
+      domains: asList(profile?.question_answers?.domains || profile?.interested_topics),
+      outcome: profile?.question_answers?.outcome || "",
+      time_budget: profile?.question_answers?.time_budget || "",
+      learning_format: profile?.learning_format || "",
+      current_level: profile?.current_level || "",
       career_goal: profile?.career_goal || "",
-      current_level: profile?.current_level || "beginner",
       current_skills: listToText(profile?.current_skills),
       desired_skills: listToText(profile?.desired_skills),
-      interested_topics: listToText(profile?.interested_topics),
-      hours_per_week: profile?.hours_per_week || "",
-      learning_format: profile?.learning_format || "online"
+      interested_topics: listToText(profile?.interested_topics)
     }),
     [profile]
   );
+
   const [form, setForm] = useState(initial);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setForm(initial);
   }, [initial]);
 
-  const handleChange = (event) => {
-    setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  const update = (patch) => {
+    setForm((prev) => ({ ...prev, ...patch }));
     setError("");
+  };
+
+  const hasSignal = () => {
+    return Boolean(
+      form.intent_text.trim() ||
+        form.domains.length ||
+        form.outcome ||
+        form.career_goal.trim() ||
+        form.desired_skills.trim() ||
+        form.interested_topics.trim()
+    );
+  };
+
+  const buildPayload = () => {
+    const extraTopics = textToList(form.interested_topics);
+    return {
+      intent_text: form.intent_text.trim(),
+      question_answers: {
+        domains: form.domains,
+        outcome: form.outcome,
+        time_budget: form.time_budget,
+        level_hint: form.current_level || "unknown"
+      },
+      career_goal: form.career_goal.trim(),
+      current_level: form.current_level || null,
+      current_skills: textToList(form.current_skills),
+      desired_skills: textToList(form.desired_skills),
+      interested_topics: [...new Set([...form.domains, ...extraTopics])],
+      hours_per_week: parseHours(form.time_budget),
+      learning_format: form.learning_format || null
+    };
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!form.career_goal.trim()) {
-      setError("Vui lòng nhập mục tiêu học tập hoặc nghề nghiệp.");
+    if (!hasSignal()) {
+      setError("Nhập nhu cầu học hoặc chọn vài tín hiệu quan tâm.");
       return;
     }
-    onSubmit({
-      career_goal: form.career_goal.trim(),
-      current_level: form.current_level,
-      current_skills: textToList(form.current_skills),
-      desired_skills: textToList(form.desired_skills),
-      interested_topics: textToList(form.interested_topics),
-      hours_per_week: form.hours_per_week ? Number(form.hours_per_week) : null,
-      learning_format: form.learning_format
-    });
+    onSubmit(buildPayload());
   };
 
   const handleExtract = async (event) => {
@@ -64,12 +147,12 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtr
       const extracted = await onExtract(file);
       setForm((prev) => ({
         ...prev,
+        intent_text: extracted.intent_text || prev.intent_text,
         career_goal: extracted.career_goal || prev.career_goal,
         current_level: extracted.current_level || prev.current_level,
         current_skills: listToText(extracted.current_skills),
         desired_skills: listToText(extracted.desired_skills),
         interested_topics: listToText(extracted.interested_topics),
-        hours_per_week: extracted.hours_per_week || prev.hours_per_week,
         learning_format: extracted.learning_format || prev.learning_format
       }));
     } catch {
@@ -78,7 +161,7 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtr
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           {error}
@@ -86,11 +169,22 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtr
       )}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        {onExtract && (
-          <div className="mb-5 rounded-lg border border-dashed border-teal-200 bg-teal-50 p-4">
-            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-teal-700 shadow-sm ring-1 ring-teal-200 hover:bg-teal-100">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <Field label="Nhu cầu học" htmlFor="intent_text">
+            <textarea
+              id="intent_text"
+              rows={7}
+              value={form.intent_text}
+              onChange={(event) => update({ intent_text: event.target.value })}
+              className="input resize-none"
+              placeholder="Ví dụ: Em muốn học trí tuệ nhân tạo để làm chatbot, hiện mới biết Python cơ bản."
+            />
+          </Field>
+
+          {onExtract && (
+            <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">
               <UploadCloud className="h-4 w-4" />
-              {extracting ? "Đang rút trích..." : "Upload hồ sơ/CV để tự điền form"}
+              {extracting ? "Đang đọc file..." : "Upload file"}
               <input
                 type="file"
                 accept=".pdf,.pptx,.docx"
@@ -99,108 +193,100 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtr
                 onChange={handleExtract}
               />
             </label>
-            <p className="mt-2 text-sm text-teal-800">
-              Hệ thống sẽ đọc file, điền trước mục tiêu, kỹ năng, chủ đề quan tâm và cách học. Bạn có thể chỉnh lại rồi tạo gợi ý.
-            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <ChoiceGroup
+            label="Bạn đang nghiêng về mảng nào?"
+            options={DOMAIN_OPTIONS}
+            values={form.domains}
+            onToggle={(value) => update({ domains: toggleValue(form.domains, value) })}
+          />
+          <SingleChoice
+            label="Kết quả mong muốn"
+            options={OUTCOME_OPTIONS}
+            value={form.outcome}
+            onChange={(value) => update({ outcome: value })}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-3">
+          <SingleChoice
+            label="Thời gian học"
+            options={TIME_OPTIONS}
+            value={form.time_budget}
+            onChange={(value) => update({ time_budget: value })}
+          />
+          <SingleChoice
+            label="Hình thức"
+            options={FORMAT_OPTIONS}
+            value={form.learning_format}
+            onChange={(value) => update({ learning_format: value })}
+          />
+          <SingleChoice
+            label="Mức nền"
+            options={LEVEL_OPTIONS}
+            value={form.current_level}
+            onChange={(value) => update({ current_level: value })}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((value) => !value)}
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Tín hiệu bổ sung
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Field label="Mục tiêu nghề nghiệp" htmlFor="career_goal">
+              <input
+                id="career_goal"
+                value={form.career_goal}
+                onChange={(event) => update({ career_goal: event.target.value })}
+                className="input"
+                placeholder="AI Engineer, Data Analyst, Frontend..."
+              />
+            </Field>
+            <Field label="Kỹ năng hiện có" htmlFor="current_skills">
+              <input
+                id="current_skills"
+                value={form.current_skills}
+                onChange={(event) => update({ current_skills: event.target.value })}
+                className="input"
+                placeholder="python, excel, html..."
+              />
+            </Field>
+            <Field label="Kỹ năng muốn học" htmlFor="desired_skills">
+              <input
+                id="desired_skills"
+                value={form.desired_skills}
+                onChange={(event) => update({ desired_skills: event.target.value })}
+                className="input"
+                placeholder="AI, machine learning, react..."
+              />
+            </Field>
+            <Field label="Chủ đề khác" htmlFor="interested_topics">
+              <input
+                id="interested_topics"
+                value={form.interested_topics}
+                onChange={(event) => update({ interested_topics: event.target.value })}
+                className="input"
+                placeholder="data visualization, cloud..."
+              />
+            </Field>
           </div>
         )}
-        <h2 className="text-base font-semibold text-slate-950">Mục tiêu</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Field label="Mục tiêu nghề nghiệp" htmlFor="career_goal">
-            <textarea
-              id="career_goal"
-              name="career_goal"
-              rows={4}
-              value={form.career_goal}
-              onChange={handleChange}
-              className="input resize-none"
-              placeholder="Ví dụ: trở thành Data Analyst trong 6 tháng"
-            />
-          </Field>
-          <Field label="Trình độ hiện tại" htmlFor="current_level">
-            <select
-              id="current_level"
-              name="current_level"
-              value={form.current_level}
-              onChange={handleChange}
-              className="input"
-            >
-              <option value="beginner">Cơ bản</option>
-              <option value="intermediate">Trung cấp</option>
-              <option value="advanced">Nâng cao</option>
-            </select>
-          </Field>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-950">Kỹ năng và chủ đề</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Field label="Kỹ năng hiện tại" htmlFor="current_skills">
-            <textarea
-              id="current_skills"
-              name="current_skills"
-              rows={4}
-              value={form.current_skills}
-              onChange={handleChange}
-              className="input resize-none"
-              placeholder="excel, sql cơ bản, ..."
-            />
-          </Field>
-          <Field label="Kỹ năng muốn học" htmlFor="desired_skills">
-            <textarea
-              id="desired_skills"
-              name="desired_skills"
-              rows={4}
-              value={form.desired_skills}
-              onChange={handleChange}
-              className="input resize-none"
-              placeholder="python, dashboard, statistics, ..."
-            />
-          </Field>
-          <Field label="Chủ đề quan tâm" htmlFor="interested_topics">
-            <textarea
-              id="interested_topics"
-              name="interested_topics"
-              rows={4}
-              value={form.interested_topics}
-              onChange={handleChange}
-              className="input resize-none"
-              placeholder="data visualization, machine learning, ..."
-            />
-          </Field>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-950">Cách học</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Field label="Số giờ học mỗi tuần" htmlFor="hours_per_week">
-            <input
-              id="hours_per_week"
-              name="hours_per_week"
-              type="number"
-              min="0"
-              value={form.hours_per_week}
-              onChange={handleChange}
-              className="input"
-              placeholder="8"
-            />
-          </Field>
-          <Field label="Hình thức học" htmlFor="learning_format">
-            <select
-              id="learning_format"
-              name="learning_format"
-              value={form.learning_format}
-              onChange={handleChange}
-              className="input"
-            >
-              <option value="online">Online</option>
-              <option value="offline">Offline</option>
-              <option value="hybrid">Hybrid</option>
-            </select>
-          </Field>
-        </div>
       </section>
 
       <div className="flex flex-col justify-end gap-3 sm:flex-row">
@@ -212,7 +298,7 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtr
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-50 disabled:bg-slate-100 disabled:text-slate-400"
           >
             <Sparkles className="h-4 w-4" />
-            {generating ? "Đang tạo gợi ý..." : "Tạo gợi ý khóa học"}
+            {generating ? "Đang tạo..." : "Tạo gợi ý"}
           </button>
         )}
         <button
@@ -221,10 +307,66 @@ export default function LearningNeedForm({ profile, onSubmit, onGenerate, onExtr
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:bg-slate-300"
         >
           <Save className="h-4 w-4" />
-          {saving ? "Đang lưu..." : "Lưu hồ sơ"}
+          {saving ? "Đang lưu..." : "Lưu nhu cầu"}
         </button>
       </div>
     </form>
+  );
+}
+
+function ChoiceGroup({ label, options, values, onToggle }) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-slate-700">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const active = values.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onToggle(option)}
+              className={`min-h-9 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                active
+                  ? "border-teal-700 bg-teal-700 text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SingleChoice({ label, options, value, onChange }) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-slate-700">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const optionValue = Array.isArray(option) ? option[0] : option;
+          const optionLabel = Array.isArray(option) ? option[1] : option;
+          const active = value === optionValue;
+          return (
+            <button
+              key={`${label}-${optionValue}`}
+              type="button"
+              onClick={() => onChange(optionValue)}
+              className={`min-h-9 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                active
+                  ? "border-teal-700 bg-teal-700 text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {optionLabel}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

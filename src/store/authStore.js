@@ -256,6 +256,15 @@ export function AppProvider({ children }) {
     return generated;
   }, []);
 
+  const trackRecommendationEvent = useCallback(async (courseId, eventType = "view", source = "ui") => {
+    if (!courseId || currentUserRef.current?.role !== "student") return null;
+    return recommendationsApi.trackEvent({
+      course_id: courseId,
+      event_type: eventType,
+      source
+    }).catch(() => null);
+  }, []);
+
   const value = useMemo(
     () => ({
       currentUser,
@@ -282,7 +291,8 @@ export function AppProvider({ children }) {
       saveStudentProfile,
       extractCourseDraft,
       extractStudentProfileDraft,
-      generateRecommendations
+      generateRecommendations,
+      trackRecommendationEvent
     }),
     [
       currentUser,
@@ -309,7 +319,8 @@ export function AppProvider({ children }) {
       saveStudentProfile,
       extractCourseDraft,
       extractStudentProfileDraft,
-      generateRecommendations
+      generateRecommendations,
+      trackRecommendationEvent
     ]
   );
 

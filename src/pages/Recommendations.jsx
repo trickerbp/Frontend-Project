@@ -8,7 +8,13 @@ import RecommendationList from "../components/RecommendationList";
 import { useApp } from "../store/authStore";
 
 export default function Recommendations() {
-  const { studentProfile, recommendations, courses, generateRecommendations } = useApp();
+  const {
+    studentProfile,
+    recommendations,
+    courses,
+    generateRecommendations,
+    trackRecommendationEvent
+  } = useApp();
   const [generating, setGenerating] = useState(false);
 
   const handleGenerate = async () => {
@@ -27,10 +33,10 @@ export default function Recommendations() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-teal-700">Course matching</p>
+          <p className="text-sm font-medium text-teal-700">Recommendation</p>
           <h1 className="mt-1 text-2xl font-semibold text-slate-950">Gợi ý khóa học</h1>
           <p className="mt-1 text-slate-500">
-            Ranking khóa học dựa trên hồ sơ học tập, kỹ năng mục tiêu và tài nguyên đã xử lý.
+            Xếp hạng theo nhu cầu, nội dung khóa học và hành vi chọn/xem gần đây.
           </p>
         </div>
         <button
@@ -47,13 +53,13 @@ export default function Recommendations() {
       {!studentProfile ? (
         <EmptyState
           icon={Target}
-          title="Bạn cần cập nhật hồ sơ học tập trước khi tạo gợi ý."
+          title="Bạn cần nhập nhu cầu học trước khi tạo gợi ý."
           action={
             <Link
               to="/student/profile"
               className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
             >
-              Cập nhật hồ sơ
+              Nhập nhu cầu
             </Link>
           }
         />
@@ -73,7 +79,11 @@ export default function Recommendations() {
           }
         />
       ) : (
-        <RecommendationList recommendations={recommendations} courses={courses} />
+        <RecommendationList
+          recommendations={recommendations}
+          courses={courses}
+          onTrack={trackRecommendationEvent}
+        />
       )}
     </div>
   );

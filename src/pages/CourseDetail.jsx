@@ -26,7 +26,8 @@ export default function CourseDetail({ resourcesOnly = false }) {
     loadCourseResources,
     uploadCourseResource,
     processResource,
-    deleteResource
+    deleteResource,
+    trackRecommendationEvent
   } = useApp();
   const [tab, setTab] = useState(resourcesOnly ? "resources" : "overview");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -45,6 +46,12 @@ export default function CourseDetail({ resourcesOnly = false }) {
       loadCourseResources(id).catch(() => {});
     }
   }, [courseResources, id, loadCourseResources]);
+
+  useEffect(() => {
+    if (id && currentUser?.role === "student") {
+      trackRecommendationEvent?.(id, "view", "course_detail");
+    }
+  }, [currentUser?.role, id, trackRecommendationEvent]);
 
   if (!course) {
     return (
@@ -216,7 +223,11 @@ export default function CourseDetail({ resourcesOnly = false }) {
       {tab === "mapping" && (
         <section>
           {courseRecommendations.length > 0 ? (
-            <RecommendationList recommendations={courseRecommendations} courses={courses} />
+            <RecommendationList
+              recommendations={courseRecommendations}
+              courses={courses}
+              onTrack={trackRecommendationEvent}
+            />
           ) : (
             <EmptyState icon={FileText} title="Chưa có dữ liệu mapping cho khóa học này." />
           )}

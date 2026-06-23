@@ -61,17 +61,17 @@ export default function LearningNeed() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-teal-700">Learning profile</p>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-950">Hồ sơ học tập</h1>
+        <p className="text-sm font-medium text-teal-700">Learning intent</p>
+        <h1 className="mt-1 text-2xl font-semibold text-slate-950">Nhu cầu học</h1>
         <p className="mt-1 text-slate-500">
-          Cập nhật mục tiêu, kỹ năng hiện tại và kỹ năng muốn học để hệ thống mapping khóa học chính xác hơn.
+          Nhập điều bạn muốn học theo cách tự nhiên, hoặc chọn vài tín hiệu nhanh.
         </p>
       </div>
 
       {!studentProfile && (
         <EmptyState
           icon={Target}
-          title="Bạn chưa có hồ sơ học tập. Hãy nhập thông tin để bắt đầu nhận gợi ý."
+          title="Bạn chưa có nhu cầu học nào."
         />
       )}
 
@@ -89,7 +89,7 @@ export default function LearningNeed() {
         <div className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-800">
           <div className="flex items-center gap-2 font-medium">
             <Sparkles className="h-4 w-4" />
-            Hồ sơ đã sẵn sàng để tạo gợi ý khóa học.
+            Nhu cầu đã sẵn sàng để tạo gợi ý.
           </div>
         </div>
       )}

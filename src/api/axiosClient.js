@@ -205,6 +205,10 @@ export const recommendationsApi = {
   async generate(payload = {}) {
     const { data } = await api.post("/api/recommendations/generate", payload);
     return data;
+  },
+  async trackEvent(payload) {
+    const { data } = await api.post("/api/recommendations/events", payload);
+    return data;
   }
 };
 

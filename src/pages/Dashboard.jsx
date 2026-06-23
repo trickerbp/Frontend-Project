@@ -114,9 +114,9 @@ export default function Dashboard() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard icon={BookOpen} label="Khóa học khả dụng" value={activeCourses.length} tone="teal" />
-            <StatCard icon={Target} label="Hồ sơ học tập" value={studentProfile ? "Đã có" : "Chưa có"} tone="cyan" />
+            <StatCard icon={Target} label="Nhu cầu học" value={studentProfile ? "Đã có" : "Chưa có"} tone="cyan" />
             <StatCard icon={Sparkles} label="Gợi ý đã tạo" value={recommendations.length} tone="amber" />
-            <StatCard icon={CheckCircle} label="Kỹ năng mục tiêu" value={toList(studentProfile?.desired_skills).length} tone="rose" />
+            <StatCard icon={CheckCircle} label="Tín hiệu chọn" value={toList(studentProfile?.interested_topics).length} tone="rose" />
           </div>
           <StudentProfileSummary profile={studentProfile} />
           <section className="space-y-3">
@@ -130,7 +130,7 @@ export default function Dashboard() {
               <RecommendationList recommendations={recommendations.slice(0, 3)} courses={courses} />
             ) : (
               <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                Chưa có gợi ý. Cập nhật hồ sơ để tạo recommendation đầu tiên.
+                Chưa có gợi ý. Nhập nhu cầu để tạo recommendation đầu tiên.
               </div>
             )}
           </section>
@@ -157,7 +157,7 @@ function RoleActions({ role }) {
     return (
       <div className="flex flex-wrap gap-2">
         <Link to="/student/profile" className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
-          Cập nhật hồ sơ
+          Nhập nhu cầu
         </Link>
         <Link to="/student/recommendations" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
           Tạo gợi ý mới
@@ -250,15 +250,15 @@ function ResourceSummary({ resources }) {
 function StudentProfileSummary({ profile }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="font-semibold text-slate-950">Hồ sơ học tập của bạn</h2>
+      <h2 className="font-semibold text-slate-950">Nhu cầu học của bạn</h2>
       {profile ? (
         <div className="mt-3 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
-          <p><span className="font-medium text-slate-900">Mục tiêu:</span> {profile.career_goal || "-"}</p>
+          <p><span className="font-medium text-slate-900">Nhu cầu:</span> {profile.intent_text || profile.career_goal || "-"}</p>
           <p><span className="font-medium text-slate-900">Trình độ:</span> {profile.current_level || "-"}</p>
           <p><span className="font-medium text-slate-900">Giờ/tuần:</span> {profile.hours_per_week || "-"}</p>
         </div>
       ) : (
-        <p className="mt-3 text-sm text-slate-500">Bạn chưa tạo hồ sơ học tập.</p>
+        <p className="mt-3 text-sm text-slate-500">Bạn chưa nhập nhu cầu học.</p>
       )}
     </section>
   );
