@@ -94,13 +94,18 @@ export default function LearningNeedForm({
   extracting = false
 }) {
   const initial = useMemo(
-    () => ({
+    () => {
+      const outcomes = mergeUnique(
+        asList(profile?.question_answers?.outcomes),
+        profile?.question_answers?.outcome ? [profile.question_answers.outcome] : []
+      );
+      return {
       intent_text: profile?.intent_text || profile?.cleaned_text || "",
       domains: mergeUnique(
         asList(profile?.question_answers?.domains),
         asList(profile?.interested_topics)
       ),
-      outcome: profile?.question_answers?.outcome || "",
+      outcomes,
       time_budget: profile?.question_answers?.time_budget || "",
       learning_format: profile?.learning_format || "",
       current_level: profile?.current_level || "",
@@ -108,7 +113,8 @@ export default function LearningNeedForm({
       current_skills: listToText(profile?.current_skills),
       desired_skills: listToText(profile?.desired_skills),
       interested_topics: listToText(profile?.interested_topics)
-    }),
+    };
+    },
     [profile]
   );
 
@@ -120,10 +126,7 @@ export default function LearningNeedForm({
     setForm(initial);
   }, [initial]);
 
-  const domainOptions = useMemo(
-    () => mergeUnique(DOMAIN_OPTIONS, form.domains),
-    [form.domains]
-  );
+  const domainOptions = useMemo(() => mergeUnique(form.domains), [form.domains]);
 
   const update = (patch) => {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -156,7 +159,7 @@ export default function LearningNeedForm({
     return Boolean(
       form.intent_text.trim() ||
         form.domains.length ||
-        form.outcome ||
+        form.outcomes.length ||
         form.career_goal.trim() ||
         form.desired_skills.trim() ||
         form.interested_topics.trim()
@@ -170,7 +173,8 @@ export default function LearningNeedForm({
       intent_text: form.intent_text.trim(),
       question_answers: {
         domains: interestedTopics,
-        outcome: form.outcome,
+        outcomes: form.outcomes,
+        outcome: form.outcomes[0] || "",
         time_budget: form.time_budget,
         level_hint: form.current_level || "unknown"
       },
@@ -188,7 +192,8 @@ export default function LearningNeedForm({
     intent_text: form.intent_text.trim(),
     question_answers: {
       domains: [],
-      outcome: form.outcome,
+      outcomes: form.outcomes,
+      outcome: form.outcomes[0] || "",
       time_budget: form.time_budget,
       level_hint: form.current_level || "unknown"
     },
@@ -207,6 +212,10 @@ export default function LearningNeedForm({
       const extractedDomains = mergeUnique(
         asList(extracted.question_answers?.domains),
         asList(extracted.interested_topics)
+      );
+      const extractedOutcomes = mergeUnique(
+        asList(extracted.question_answers?.outcomes),
+        extracted.question_answers?.outcome ? [extracted.question_answers.outcome] : []
       );
       const currentSkills = mergeUnique(
         textToList(prev.current_skills),
@@ -227,6 +236,9 @@ export default function LearningNeedForm({
         domains: replace ? extractedDomains : (
           extractedDomains.length ? mergeUnique(prev.domains, extractedDomains) : prev.domains
         ),
+        outcomes: replace
+          ? (extractedOutcomes.length ? extractedOutcomes : prev.outcomes)
+          : (extractedOutcomes.length ? mergeUnique(prev.outcomes, extractedOutcomes) : prev.outcomes),
         career_goal: replace ? extracted.career_goal || "" : extracted.career_goal || prev.career_goal,
         current_level: extracted.current_level || prev.current_level,
         current_skills: replace ? listToText(extracted.current_skills) : listToText(currentSkills),
@@ -338,11 +350,11 @@ export default function LearningNeedForm({
             values={form.domains}
             onToggle={(value) => update({ domains: toggleValue(form.domains, value) })}
           />
-          <SingleChoice
+          <ChoiceGroup
             label="Kết quả mong muốn"
             options={OUTCOME_OPTIONS}
-            value={form.outcome}
-            onChange={(value) => update({ outcome: value })}
+            values={form.outcomes}
+            onToggle={(value) => update({ outcomes: toggleValue(form.outcomes, value) })}
           />
         </div>
       </section>
