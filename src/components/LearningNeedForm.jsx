@@ -17,6 +17,19 @@ function asList(value) {
   return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
+function mergeUnique(...groups) {
+  const result = [];
+  const seen = new Set();
+  groups.flat().forEach((value) => {
+    const text = String(value || "").trim();
+    const key = text.toLocaleLowerCase();
+    if (!text || seen.has(key)) return;
+    seen.add(key);
+    result.push(text);
+  });
+  return result;
+}
+
 function toggleValue(values, value) {
   return values.includes(value)
     ? values.filter((item) => item !== value)
@@ -29,13 +42,22 @@ function parseHours(value) {
 }
 
 const DOMAIN_OPTIONS = [
+  "Công nghệ thông tin",
   "Trí tuệ nhân tạo",
-  "Data Science",
-  "Phân tích dữ liệu",
-  "Web/App",
-  "Backend/API",
-  "UI/UX",
-  "DevOps/Cloud"
+  "Data/Phân tích",
+  "Kinh doanh/Quản trị",
+  "Marketing/Bán hàng",
+  "Tài chính/Kế toán",
+  "Ngoại ngữ",
+  "Thiết kế/Sáng tạo",
+  "Y tế/Sức khỏe",
+  "Giáo dục/Sư phạm",
+  "Kỹ thuật/Cơ khí",
+  "Luật/Xã hội",
+  "Du lịch/Nhà hàng",
+  "Logistics/Chuỗi cung ứng",
+  "Nông nghiệp/Môi trường",
+  "Kỹ năng mềm"
 ];
 
 const OUTCOME_OPTIONS = [
@@ -64,15 +86,20 @@ export default function LearningNeedForm({
   profile,
   onSubmit,
   onGenerate,
+  onAnalyze,
   onExtract,
   saving,
   generating,
+  analyzing = false,
   extracting = false
 }) {
   const initial = useMemo(
     () => ({
       intent_text: profile?.intent_text || profile?.cleaned_text || "",
-      domains: asList(profile?.question_answers?.domains || profile?.interested_topics),
+      domains: mergeUnique(
+        asList(profile?.question_answers?.domains),
+        asList(profile?.interested_topics)
+      ),
       outcome: profile?.question_answers?.outcome || "",
       time_budget: profile?.question_answers?.time_budget || "",
       learning_format: profile?.learning_format || "",
@@ -93,6 +120,11 @@ export default function LearningNeedForm({
     setForm(initial);
   }, [initial]);
 
+  const domainOptions = useMemo(
+    () => mergeUnique(DOMAIN_OPTIONS, form.domains),
+    [form.domains]
+  );
+
   const update = (patch) => {
     setForm((prev) => ({ ...prev, ...patch }));
     setError("");
@@ -111,10 +143,11 @@ export default function LearningNeedForm({
 
   const buildPayload = () => {
     const extraTopics = textToList(form.interested_topics);
+    const interestedTopics = mergeUnique(form.domains, extraTopics);
     return {
       intent_text: form.intent_text.trim(),
       question_answers: {
-        domains: form.domains,
+        domains: interestedTopics,
         outcome: form.outcome,
         time_budget: form.time_budget,
         level_hint: form.current_level || "unknown"
@@ -123,10 +156,50 @@ export default function LearningNeedForm({
       current_level: form.current_level || null,
       current_skills: textToList(form.current_skills),
       desired_skills: textToList(form.desired_skills),
-      interested_topics: [...new Set([...form.domains, ...extraTopics])],
+      interested_topics: interestedTopics,
       hours_per_week: parseHours(form.time_budget),
       learning_format: form.learning_format || null
     };
+  };
+
+  const applyExtractedProfile = (extracted) => {
+    if (!extracted) return;
+    setForm((prev) => {
+      const extractedDomains = mergeUnique(
+        asList(extracted.question_answers?.domains),
+        asList(extracted.interested_topics)
+      );
+      const currentSkills = mergeUnique(
+        textToList(prev.current_skills),
+        asList(extracted.current_skills)
+      );
+      const desiredSkills = mergeUnique(
+        textToList(prev.desired_skills),
+        asList(extracted.desired_skills)
+      );
+      const topics = mergeUnique(
+        textToList(prev.interested_topics),
+        asList(extracted.interested_topics)
+      );
+
+      return {
+        ...prev,
+        intent_text: extracted.intent_text || prev.intent_text,
+        domains: extractedDomains.length
+          ? mergeUnique(prev.domains, extractedDomains)
+          : prev.domains,
+        career_goal: extracted.career_goal || prev.career_goal,
+        current_level: extracted.current_level || prev.current_level,
+        current_skills: listToText(currentSkills),
+        desired_skills: listToText(desiredSkills),
+        interested_topics: listToText(topics),
+        time_budget:
+          prev.time_budget ||
+          extracted.question_answers?.time_budget ||
+          (extracted.hours_per_week ? `${extracted.hours_per_week} giờ/tuần` : ""),
+        learning_format: extracted.learning_format || prev.learning_format
+      };
+    });
   };
 
   const handleSubmit = (event) => {
@@ -138,6 +211,21 @@ export default function LearningNeedForm({
     onSubmit(buildPayload());
   };
 
+  const handleAnalyze = async () => {
+    if (!onAnalyze) return;
+    if (!hasSignal()) {
+      setError("Nhập nhu cầu học hoặc chọn vài tín hiệu quan tâm.");
+      return;
+    }
+    setError("");
+    try {
+      const extracted = await onAnalyze(buildPayload());
+      applyExtractedProfile(extracted);
+    } catch {
+      setError("Không phân tích được nhu cầu lúc này.");
+    }
+  };
+
   const handleExtract = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -145,16 +233,7 @@ export default function LearningNeedForm({
     setError("");
     try {
       const extracted = await onExtract(file);
-      setForm((prev) => ({
-        ...prev,
-        intent_text: extracted.intent_text || prev.intent_text,
-        career_goal: extracted.career_goal || prev.career_goal,
-        current_level: extracted.current_level || prev.current_level,
-        current_skills: listToText(extracted.current_skills),
-        desired_skills: listToText(extracted.desired_skills),
-        interested_topics: listToText(extracted.interested_topics),
-        learning_format: extracted.learning_format || prev.learning_format
-      }));
+      applyExtractedProfile(extracted);
     } catch {
       setError("Không rút trích được hồ sơ từ file này.");
     }
@@ -177,22 +256,37 @@ export default function LearningNeedForm({
               value={form.intent_text}
               onChange={(event) => update({ intent_text: event.target.value })}
               className="input resize-none"
-              placeholder="Ví dụ: Em muốn học trí tuệ nhân tạo để làm chatbot, hiện mới biết Python cơ bản."
+              placeholder="Ví dụ: Em muốn học digital marketing để chạy quảng cáo, hiện mới biết viết content cơ bản."
             />
           </Field>
 
-          {onExtract && (
-            <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">
-              <UploadCloud className="h-4 w-4" />
-              {extracting ? "Đang đọc file..." : "Upload file"}
-              <input
-                type="file"
-                accept=".pdf,.pptx,.docx"
-                className="sr-only"
-                disabled={extracting}
-                onChange={handleExtract}
-              />
-            </label>
+          {(onAnalyze || onExtract) && (
+            <div className="flex flex-wrap gap-2 lg:flex-col">
+              {onAnalyze && (
+                <button
+                  type="button"
+                  onClick={handleAnalyze}
+                  disabled={analyzing || extracting}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50 disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {analyzing ? "Đang phân tích..." : "Phân tích bằng AI"}
+                </button>
+              )}
+              {onExtract && (
+                <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">
+                  <UploadCloud className="h-4 w-4" />
+                  {extracting ? "Đang đọc file..." : "Upload file"}
+                  <input
+                    type="file"
+                    accept=".pdf,.pptx,.docx"
+                    className="sr-only"
+                    disabled={extracting}
+                    onChange={handleExtract}
+                  />
+                </label>
+              )}
+            </div>
           )}
         </div>
       </section>
@@ -201,7 +295,7 @@ export default function LearningNeedForm({
         <div className="grid gap-5 lg:grid-cols-2">
           <ChoiceGroup
             label="Bạn đang nghiêng về mảng nào?"
-            options={DOMAIN_OPTIONS}
+            options={domainOptions}
             values={form.domains}
             onToggle={(value) => update({ domains: toggleValue(form.domains, value) })}
           />
@@ -255,7 +349,7 @@ export default function LearningNeedForm({
                 value={form.career_goal}
                 onChange={(event) => update({ career_goal: event.target.value })}
                 className="input"
-                placeholder="AI Engineer, Data Analyst, Frontend..."
+                placeholder="Marketing Executive, Kế toán viên, Giáo viên tiếng Anh..."
               />
             </Field>
             <Field label="Kỹ năng hiện có" htmlFor="current_skills">
@@ -264,7 +358,7 @@ export default function LearningNeedForm({
                 value={form.current_skills}
                 onChange={(event) => update({ current_skills: event.target.value })}
                 className="input"
-                placeholder="python, excel, html..."
+                placeholder="excel, giao tiếp, viết content, tiếng Anh..."
               />
             </Field>
             <Field label="Kỹ năng muốn học" htmlFor="desired_skills">
@@ -273,7 +367,7 @@ export default function LearningNeedForm({
                 value={form.desired_skills}
                 onChange={(event) => update({ desired_skills: event.target.value })}
                 className="input"
-                placeholder="AI, machine learning, react..."
+                placeholder="SEO, kế toán, IELTS, thiết kế, Python..."
               />
             </Field>
             <Field label="Chủ đề khác" htmlFor="interested_topics">
@@ -282,7 +376,7 @@ export default function LearningNeedForm({
                 value={form.interested_topics}
                 onChange={(event) => update({ interested_topics: event.target.value })}
                 className="input"
-                placeholder="data visualization, cloud..."
+                placeholder="marketing, tài chính, ngoại ngữ, logistics..."
               />
             </Field>
           </div>

@@ -11,12 +11,14 @@ export default function LearningNeed() {
   const {
     studentProfile,
     saveStudentProfile,
+    analyzeStudentProfileDraft,
     extractStudentProfileDraft,
     generateRecommendations
   } = useApp();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [extracting, setExtracting] = useState(false);
 
   const handleSave = async (payload) => {
@@ -41,6 +43,20 @@ export default function LearningNeed() {
       toast.error(getErrorMessage(error));
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleAnalyze = async (payload) => {
+    setAnalyzing(true);
+    try {
+      const extracted = await analyzeStudentProfileDraft(payload);
+      toast.success("Đã phân tích và điền thêm mảng quan tâm.");
+      return extracted;
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+      throw error;
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -79,9 +95,11 @@ export default function LearningNeed() {
         profile={studentProfile}
         onSubmit={handleSave}
         onGenerate={handleGenerate}
+        onAnalyze={handleAnalyze}
         onExtract={handleExtract}
         saving={saving}
         generating={generating}
+        analyzing={analyzing}
         extracting={extracting}
       />
 

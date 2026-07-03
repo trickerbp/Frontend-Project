@@ -250,6 +250,11 @@ export function AppProvider({ children }) {
     []
   );
 
+  const analyzeStudentProfileDraft = useCallback(
+    async (payload) => studentProfilesApi.analyze(payload),
+    []
+  );
+
   const generateRecommendations = useCallback(async () => {
     const generated = await recommendationsApi.generate();
     setRecommendations(recommendationItems(generated));
@@ -291,6 +296,7 @@ export function AppProvider({ children }) {
       saveStudentProfile,
       extractCourseDraft,
       extractStudentProfileDraft,
+      analyzeStudentProfileDraft,
       generateRecommendations,
       trackRecommendationEvent
     }),
@@ -319,6 +325,7 @@ export function AppProvider({ children }) {
       saveStudentProfile,
       extractCourseDraft,
       extractStudentProfileDraft,
+      analyzeStudentProfileDraft,
       generateRecommendations,
       trackRecommendationEvent
     ]

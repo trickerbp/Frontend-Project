@@ -175,6 +175,10 @@ export const courseResourcesApi = {
 };
 
 export const studentProfilesApi = {
+  async analyze(payload) {
+    const { data } = await api.post("/api/student-profiles/analyze-intent", payload);
+    return data;
+  },
   async extract(file) {
     const formData = new FormData();
     formData.append("file", file);
