@@ -130,6 +130,28 @@ export default function LearningNeedForm({
     setError("");
   };
 
+  const handleIntentTextChange = (value) => {
+    setForm((prev) => {
+      const replacingExistingNeed =
+        Boolean(profile) &&
+        prev.intent_text === initial.intent_text &&
+        value !== initial.intent_text;
+      if (!replacingExistingNeed) {
+        return { ...prev, intent_text: value };
+      }
+      return {
+        ...prev,
+        intent_text: value,
+        domains: [],
+        career_goal: "",
+        current_skills: "",
+        desired_skills: "",
+        interested_topics: ""
+      };
+    });
+    setError("");
+  };
+
   const hasSignal = () => {
     return Boolean(
       form.intent_text.trim() ||
@@ -162,7 +184,24 @@ export default function LearningNeedForm({
     };
   };
 
-  const applyExtractedProfile = (extracted) => {
+  const buildAnalysisPayload = () => ({
+    intent_text: form.intent_text.trim(),
+    question_answers: {
+      domains: [],
+      outcome: form.outcome,
+      time_budget: form.time_budget,
+      level_hint: form.current_level || "unknown"
+    },
+    career_goal: "",
+    current_level: form.current_level || null,
+    current_skills: [],
+    desired_skills: [],
+    interested_topics: [],
+    hours_per_week: parseHours(form.time_budget),
+    learning_format: form.learning_format || null
+  });
+
+  const applyExtractedProfile = (extracted, { replace = false } = {}) => {
     if (!extracted) return;
     setForm((prev) => {
       const extractedDomains = mergeUnique(
@@ -185,14 +224,14 @@ export default function LearningNeedForm({
       return {
         ...prev,
         intent_text: extracted.intent_text || prev.intent_text,
-        domains: extractedDomains.length
-          ? mergeUnique(prev.domains, extractedDomains)
-          : prev.domains,
-        career_goal: extracted.career_goal || prev.career_goal,
+        domains: replace ? extractedDomains : (
+          extractedDomains.length ? mergeUnique(prev.domains, extractedDomains) : prev.domains
+        ),
+        career_goal: replace ? extracted.career_goal || "" : extracted.career_goal || prev.career_goal,
         current_level: extracted.current_level || prev.current_level,
-        current_skills: listToText(currentSkills),
-        desired_skills: listToText(desiredSkills),
-        interested_topics: listToText(topics),
+        current_skills: replace ? listToText(extracted.current_skills) : listToText(currentSkills),
+        desired_skills: replace ? listToText(extracted.desired_skills) : listToText(desiredSkills),
+        interested_topics: replace ? listToText(extracted.interested_topics) : listToText(topics),
         time_budget:
           prev.time_budget ||
           extracted.question_answers?.time_budget ||
@@ -219,8 +258,8 @@ export default function LearningNeedForm({
     }
     setError("");
     try {
-      const extracted = await onAnalyze(buildPayload());
-      applyExtractedProfile(extracted);
+      const extracted = await onAnalyze(buildAnalysisPayload());
+      applyExtractedProfile(extracted, { replace: true });
     } catch {
       setError("Không phân tích được nhu cầu lúc này.");
     }
@@ -254,7 +293,7 @@ export default function LearningNeedForm({
               id="intent_text"
               rows={7}
               value={form.intent_text}
-              onChange={(event) => update({ intent_text: event.target.value })}
+              onChange={(event) => handleIntentTextChange(event.target.value)}
               className="input resize-none"
               placeholder="Ví dụ: Em muốn học digital marketing để chạy quảng cáo, hiện mới biết viết content cơ bản."
             />
