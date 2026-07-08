@@ -6,6 +6,12 @@ function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "");
 }
 
+function normalizeUrlOrigin(value) {
+  const url = new URL(value);
+  url.hostname = url.hostname.replace(/\.+$/, "");
+  return normalizeBaseUrl(url.origin);
+}
+
 function getRuntimeApiBaseUrl() {
   if (typeof window === "undefined") return "http://localhost:8000";
   return `${window.location.protocol}//${window.location.hostname}:8000`;
@@ -18,10 +24,11 @@ function resolveApiBaseUrl() {
 
   try {
     const url = new URL(configuredUrl);
+    url.hostname = url.hostname.replace(/\.+$/, "");
     if (LOCAL_HOSTS.has(url.hostname) && !LOCAL_HOSTS.has(window.location.hostname)) {
       url.hostname = window.location.hostname;
     }
-    return normalizeBaseUrl(url.origin);
+    return normalizeUrlOrigin(url.origin);
   } catch {
     return normalizeBaseUrl(configuredUrl);
   }
